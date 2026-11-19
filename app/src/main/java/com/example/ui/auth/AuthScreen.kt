@@ -1,0 +1,352 @@
+package com.example.ui.auth
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Brush
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.credentials.CredentialManager
+import com.example.R
+import com.example.auth.attemptAutoSignIn
+import com.example.auth.onGoogleSignInClicked
+import com.example.auth.onGuestSignInClicked
+import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioBadge
+import com.example.ui.components.TactileButton
+import com.example.ui.components.TactileCard
+import com.example.ui.theme.FranceCobalt
+import com.example.ui.theme.FranceSkyTint
+import com.example.ui.theme.JapanPersimmon
+import com.example.ui.theme.JapanSakuraMist
+import com.example.ui.theme.LocalStudioPalette
+import com.example.ui.theme.SpainSaffron
+import com.example.ui.theme.SpainSunlitCream
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AuthScreen(
+    onAuthSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val credentialManager = remember(context) { CredentialManager.create(context) }
+    val palette = LocalStudioPalette.current
+
+    var isAutoChecking by remember { mutableStateOf(true) }
+    var isSigningIn by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        attemptAutoSignIn(
+            context = context,
+            credentialManager = credentialManager,
+            onAuthSuccess = {
+                isAutoChecking = false
+                onAuthSuccess()
+            },
+            onUnauthenticated = {
+                isAutoChecking = false
+            },
+            scope = scope
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 560.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            StudioBadge(
+                text = "ENGLISH → JP • ES • FR",
+                containerColor = palette.languageTint,
+                contentColor = palette.languageAccent
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.auth_tagline),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            TactileCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+            ) {
+                Column {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_welcome_studio),
+                        contentDescription = "Polyglot Studio desk illustration",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            LanguageMiniPill(TargetLanguage.JAPANESE, JapanPersimmon, JapanSakuraMist, Modifier.weight(1f))
+                            LanguageMiniPill(TargetLanguage.SPANISH, SpainSaffron, SpainSunlitCream, Modifier.weight(1f))
+                            LanguageMiniPill(TargetLanguage.FRENCH, FranceCobalt, FranceSkyTint, Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            text = "5 Skill-Focused Games + AI Speech & Live Tutor",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FeatureChip(Icons.Rounded.Style, "Card Match")
+                            FeatureChip(Icons.Rounded.Brush, "Calligraphy Vision")
+                            FeatureChip(Icons.Rounded.Quiz, "Syntax Quiz")
+                            FeatureChip(Icons.Rounded.GraphicEq, "Voice Arena")
+                            FeatureChip(Icons.Rounded.Forum, "Story Café")
+                            FeatureChip(Icons.Rounded.AutoAwesome, "Gemini Live Tutor")
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            if (errorMessage != null) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = palette.dangerSoft,
+                    border = BorderStroke(1.5.dp, palette.danger),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                ) {
+                    Text(
+                        text = errorMessage ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = palette.danger,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            TactileButton(
+                onClick = {
+                    errorMessage = null
+                    isSigningIn = true
+                    onGoogleSignInClicked(
+                        context = context,
+                        credentialManager = credentialManager,
+                        onAuthSuccess = {
+                            isSigningIn = false
+                            onAuthSuccess()
+                        },
+                        onAuthError = { msg ->
+                            isSigningIn = false
+                            errorMessage = msg
+                        },
+                        scope = scope,
+                        onAuthCancelled = {
+                            isSigningIn = false
+                        }
+                    )
+                },
+                enabled = !isSigningIn && !isAutoChecking,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("google_sign_in_button")
+            ) {
+                if (isSigningIn || isAutoChecking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.5.dp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = if (isAutoChecking) "Checking session…" else "Signing in…",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.sign_in_with_google),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            TactileButton(
+                onClick = {
+                    errorMessage = null
+                    isSigningIn = true
+                    onGuestSignInClicked(
+                        onAuthSuccess = {
+                            isSigningIn = false
+                            onAuthSuccess()
+                        },
+                        onAuthError = { msg ->
+                            isSigningIn = false
+                            errorMessage = msg
+                        },
+                        scope = scope
+                    )
+                },
+                enabled = !isSigningIn && !isAutoChecking,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("guest_sign_in_button")
+            ) {
+                Text(
+                    text = stringResource(R.string.continue_as_guest),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "Cloud syncs your XP, daily streaks, skill mastery, and saved phrases.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguageMiniPill(
+    language: TargetLanguage,
+    accent: Color,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = tint,
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.5f)),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = language.shortBadge,
+                style = MaterialTheme.typography.labelSmall,
+                color = accent
+            )
+            Text(
+                text = language.nativeLabel,
+                style = MaterialTheme.typography.titleSmall,
+                color = Color(0xFF1E1B24),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeatureChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String
+) {
+    val palette = LocalStudioPalette.current
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = palette.subtleSurface,
+        border = BorderStroke(1.dp, palette.inkBorder.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}

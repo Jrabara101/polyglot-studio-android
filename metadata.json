@@ -1,0 +1,6 @@
+{
+  "name": "Polyglot Studio",
+  "description": "Interactive Android language learning game studio for Japanese, Spanish, and French featuring five skill-focused games, AI Speech Guide, Gemini Tutor, and cloud sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,161 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny all reads and writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidLanguage(lang) {
+      return lang is string && lang in ['japanese', 'spanish', 'french'];
+    }
+
+    function isValidDifficulty(diff) {
+      return diff is string && diff in ['beginner', 'intermediate', 'advanced'];
+    }
+
+    function isValidGameType(game) {
+      return game is string && game in ['cards', 'calligraphy', 'quiz', 'voice', 'story'];
+    }
+
+    function isValidSourceGame(src) {
+      return src is string && src in ['cards', 'calligraphy', 'quiz', 'voice', 'story', 'speech', 'tutor'];
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             isValidLanguage(data.activeLanguage) &&
+             isValidDifficulty(data.difficulty) &&
+             data.totalXp is int && data.totalXp >= 0 && data.totalXp <= 10000000 &&
+             data.currentStreak is int && data.currentStreak >= 0 && data.currentStreak <= 10000 &&
+             data.lastActiveDate is string && data.lastActiveDate.size() <= 20 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidLanguageMastery(data, languageCode) {
+      return isValidLanguage(data.languageCode) && data.languageCode == languageCode &&
+             data.vocabularyScore is int && data.vocabularyScore >= 0 && data.vocabularyScore <= 100 &&
+             data.writingScore is int && data.writingScore >= 0 && data.writingScore <= 100 &&
+             data.grammarScore is int && data.grammarScore >= 0 && data.grammarScore <= 100 &&
+             data.phoneticsScore is int && data.phoneticsScore >= 0 && data.phoneticsScore <= 100 &&
+             data.pragmaticsScore is int && data.pragmaticsScore >= 0 && data.pragmaticsScore <= 100 &&
+             data.languageXp is int && data.languageXp >= 0 && data.languageXp <= 10000000 &&
+             data.gamesPlayed is int && data.gamesPlayed >= 0 && data.gamesPlayed <= 1000000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidGameSessionRecord(data) {
+      return isValidGameType(data.gameType) &&
+             isValidLanguage(data.languageCode) &&
+             isValidDifficulty(data.difficulty) &&
+             data.scorePercent is int && data.scorePercent >= 0 && data.scorePercent <= 100 &&
+             data.xpEarned is int && data.xpEarned >= 0 && data.xpEarned <= 10000 &&
+             data.durationSeconds is int && data.durationSeconds >= 0 && data.durationSeconds <= 86400 &&
+             data.summary is string && data.summary.size() <= 160 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidSavedPhrase(data) {
+      return isValidLanguage(data.languageCode) &&
+             data.targetText is string && data.targetText.size() >= 1 && data.targetText.size() <= 200 &&
+             data.phonetic is string && data.phonetic.size() <= 200 &&
+             data.englishMeaning is string && data.englishMeaning.size() >= 1 && data.englishMeaning.size() <= 200 &&
+             isValidSourceGame(data.sourceGame) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'activeLanguage', 'difficulty', 'totalXp', 'currentStreak', 'lastActiveDate', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'activeLanguage', 'difficulty', 'totalXp', 'currentStreak', 'lastActiveDate', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'activeLanguage', 'difficulty', 'totalXp', 'currentStreak', 'lastActiveDate', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /mastery/{languageCode} {
+        allow get: if isOwner(userId) && isValidId(languageCode) && isValidLanguage(languageCode);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(languageCode) &&
+                         isValidLanguage(languageCode) &&
+                         incoming().keys().hasAll(['languageCode', 'vocabularyScore', 'writingScore', 'grammarScore', 'phoneticsScore', 'pragmaticsScore', 'languageXp', 'gamesPlayed', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['languageCode', 'vocabularyScore', 'writingScore', 'grammarScore', 'phoneticsScore', 'pragmaticsScore', 'languageXp', 'gamesPlayed', 'createdAt', 'updatedAt']) &&
+                         isValidLanguageMastery(incoming(), languageCode);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(languageCode) &&
+                         isValidLanguage(languageCode) &&
+                         isValidLanguageMastery(incoming(), languageCode) &&
+                         incoming().languageCode == existing().languageCode &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['vocabularyScore', 'writingScore', 'grammarScore', 'phoneticsScore', 'pragmaticsScore', 'languageXp', 'gamesPlayed', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(languageCode);
+      }
+
+      match /sessions/{sessionId} {
+        allow get: if isOwner(userId) && isValidId(sessionId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(sessionId) &&
+                         incoming().keys().hasAll(['gameType', 'languageCode', 'difficulty', 'scorePercent', 'xpEarned', 'durationSeconds', 'summary', 'createdAt']) &&
+                         incoming().keys().hasOnly(['gameType', 'languageCode', 'difficulty', 'scorePercent', 'xpEarned', 'durationSeconds', 'summary', 'createdAt']) &&
+                         isValidGameSessionRecord(incoming());
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(sessionId);
+      }
+
+      match /savedPhrases/{phraseId} {
+        allow get: if isOwner(userId) && isValidId(phraseId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(phraseId) &&
+                         incoming().keys().hasAll(['languageCode', 'targetText', 'phonetic', 'englishMeaning', 'sourceGame', 'createdAt']) &&
+                         incoming().keys().hasOnly(['languageCode', 'targetText', 'phonetic', 'englishMeaning', 'sourceGame', 'createdAt']) &&
+                         isValidSavedPhrase(incoming());
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(phraseId);
+      }
+    }
+  }
+}

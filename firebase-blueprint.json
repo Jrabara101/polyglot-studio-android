@@ -1,0 +1,213 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Learner profile storing active language, difficulty preference, XP, and daily streak.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the learner."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Learner display name."
+        },
+        "activeLanguage": {
+          "type": "string",
+          "enum": ["japanese", "spanish", "french"],
+          "description": "Currently selected target language."
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["beginner", "intermediate", "advanced"],
+          "description": "Currently selected difficulty tier."
+        },
+        "totalXp": {
+          "type": "integer",
+          "description": "Cumulative XP earned across all languages and games."
+        },
+        "currentStreak": {
+          "type": "integer",
+          "description": "Consecutive active learning days."
+        },
+        "lastActiveDate": {
+          "type": "string",
+          "description": "ISO local date string (YYYY-MM-DD) of last completed activity."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "activeLanguage",
+        "difficulty",
+        "totalXp",
+        "currentStreak",
+        "lastActiveDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LanguageMastery": {
+      "title": "LanguageMastery",
+      "description": "Per-language skill mastery breakdown across the five linguistic pillars.",
+      "type": "object",
+      "properties": {
+        "languageCode": {
+          "type": "string",
+          "enum": ["japanese", "spanish", "french"]
+        },
+        "vocabularyScore": {
+          "type": "integer"
+        },
+        "writingScore": {
+          "type": "integer"
+        },
+        "grammarScore": {
+          "type": "integer"
+        },
+        "phoneticsScore": {
+          "type": "integer"
+        },
+        "pragmaticsScore": {
+          "type": "integer"
+        },
+        "languageXp": {
+          "type": "integer"
+        },
+        "gamesPlayed": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "languageCode",
+        "vocabularyScore",
+        "writingScore",
+        "grammarScore",
+        "phoneticsScore",
+        "pragmaticsScore",
+        "languageXp",
+        "gamesPlayed",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GameSessionRecord": {
+      "title": "GameSessionRecord",
+      "description": "Completed game session log with score and XP awarded.",
+      "type": "object",
+      "properties": {
+        "gameType": {
+          "type": "string",
+          "enum": ["cards", "calligraphy", "quiz", "voice", "story"]
+        },
+        "languageCode": {
+          "type": "string",
+          "enum": ["japanese", "spanish", "french"]
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["beginner", "intermediate", "advanced"]
+        },
+        "scorePercent": {
+          "type": "integer"
+        },
+        "xpEarned": {
+          "type": "integer"
+        },
+        "durationSeconds": {
+          "type": "integer"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "gameType",
+        "languageCode",
+        "difficulty",
+        "scorePercent",
+        "xpEarned",
+        "durationSeconds",
+        "summary",
+        "createdAt"
+      ]
+    },
+    "SavedPhrase": {
+      "title": "SavedPhrase",
+      "description": "Bookmarked word or phrase saved by the learner for review.",
+      "type": "object",
+      "properties": {
+        "languageCode": {
+          "type": "string",
+          "enum": ["japanese", "spanish", "french"]
+        },
+        "targetText": {
+          "type": "string"
+        },
+        "phonetic": {
+          "type": "string"
+        },
+        "englishMeaning": {
+          "type": "string"
+        },
+        "sourceGame": {
+          "type": "string",
+          "enum": ["cards", "calligraphy", "quiz", "voice", "story", "speech", "tutor"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "languageCode",
+        "targetText",
+        "phonetic",
+        "englishMeaning",
+        "sourceGame",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Learner profile and global progression stats."
+    },
+    "/users/{userId}/mastery/{languageCode}": {
+      "schema": { "$ref": "#/entities/LanguageMastery" },
+      "description": "Per-language skill mastery scores for Japanese, Spanish, and French."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/GameSessionRecord" },
+      "description": "Append-only history of completed game sessions."
+    },
+    "/users/{userId}/savedPhrases/{phraseId}": {
+      "schema": { "$ref": "#/entities/SavedPhrase" },
+      "description": "Bookmarked phrases saved from games, speech guide, or AI tutor."
+    }
+  }
+}
