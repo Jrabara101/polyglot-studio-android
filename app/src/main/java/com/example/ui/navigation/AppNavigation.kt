@@ -50,6 +50,7 @@ import com.example.auth.AccountSetupGate
 import com.example.auth.authStateFlow
 import com.example.auth.signOut
 import com.example.data.ai.FirebaseAiRepository
+import com.example.data.cache.ProfileSummaryCache
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
@@ -100,7 +101,8 @@ private val TOP_TABS = listOf(
 private class StudioViewModelFactory(
     private val context: Context,
     private val userId: String,
-    private val aiRepository: FirebaseAiRepository
+    private val aiRepository: FirebaseAiRepository,
+    private val profileCache: ProfileSummaryCache
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -112,7 +114,8 @@ private class StudioViewModelFactory(
             audioPlayer = PcmAudioPlayer(),
             clipPlayer = AssetClipPlayer(context),
             deviceSpeech = DeviceSpeech(context),
-            currentUserId = userId
+            currentUserId = userId,
+            profileCache = profileCache
         ) as T
     }
 }
@@ -144,10 +147,11 @@ private fun AuthenticatedStudioShell(userId: String) {
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
     val aiRepository = remember { FirebaseAiRepository() }
+    val profileCache = remember(context) { ProfileSummaryCache(context.applicationContext) }
 
     val studioViewModel: StudioViewModel = viewModel(
         key = "studio_vm_$userId",
-        factory = StudioViewModelFactory(context.applicationContext, userId, aiRepository)
+        factory = StudioViewModelFactory(context.applicationContext, userId, aiRepository, profileCache)
     )
 
     val profileState by studioViewModel.profileState.collectAsStateWithLifecycle()
@@ -301,6 +305,7 @@ private fun AuthenticatedStudioShell(userId: String) {
                                 onSpeak = studioViewModel::speakText,
                                 onDeletePhrase = studioViewModel::deleteSavedPhrase,
                                 onSignOut = {
+                                    profileCache.clear(userId)
                                     signOut(credentialManager, scope)
                                 }
                             )

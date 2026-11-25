@@ -83,8 +83,23 @@ fun StudioHomeScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.TopCenter
+        contentAlignment = if (profileState is StudioUiState.Loading) Alignment.Center else Alignment.TopCenter
     ) {
+        if (profileState is StudioUiState.Loading) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(24.dp)
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                Text(
+                    text = "Loading your studio…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Box
+        }
         LazyColumn(
             modifier = Modifier
                 .widthIn(max = 760.dp)

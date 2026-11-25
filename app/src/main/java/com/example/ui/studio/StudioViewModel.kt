@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.audio.AssetClipPlayer
 import com.example.audio.DeviceSpeech
 import com.example.audio.PcmAudioPlayer
+import com.example.data.cache.ProfileSummaryCache
 import com.example.data.content.Lexicon
 import com.example.data.ai.FirebaseAiRepository
 import com.example.data.model.DifficultyLevel
@@ -43,7 +44,8 @@ class StudioViewModel(
     private val audioPlayer: PcmAudioPlayer,
     private val clipPlayer: AssetClipPlayer,
     private val deviceSpeech: DeviceSpeech,
-    private val currentUserId: String
+    private val currentUserId: String,
+    private val profileCache: ProfileSummaryCache? = null
 ) : ViewModel() {
 
     private val _speakingKey = MutableStateFlow<String?>(null)
@@ -70,20 +72,26 @@ class StudioViewModel(
     val profileState: StateFlow<StudioUiState<UserProfile>> =
         progressRepository.observeUserProfile(currentUserId)
             .map<UserProfile?, StudioUiState<UserProfile>> { profile ->
-                StudioUiState.Success(
-                    profile ?: UserProfile(
-                        userId = currentUserId,
-                        displayName = Firebase.auth.currentUser?.displayName ?: "Polyglot Learner"
-                    )
+                val resolved = profile ?: UserProfile(
+                    userId = currentUserId,
+                    displayName = Firebase.auth.currentUser?.displayName ?: "Polyglot Learner"
                 )
+                profileCache?.write(resolved)
+                StudioUiState.Success(resolved)
             }
             .catch { error ->
-                emit(StudioUiState.Error(unwrapFirestoreMessage(error, "Failed to load profile")))
+                val cached = profileCache?.read(currentUserId)
+                if (cached != null) {
+                    emit(StudioUiState.Success(cached))
+                } else {
+                    emit(StudioUiState.Error(unwrapFirestoreMessage(error, "Failed to load profile")))
+                }
             }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
-                initialValue = StudioUiState.Loading
+                initialValue = profileCache?.read(currentUserId)?.let { StudioUiState.Success(it) }
+                    ?: StudioUiState.Loading
             )
 
     val masteryState: StateFlow<StudioUiState<Map<TargetLanguage, LanguageMastery>>> =
@@ -129,6 +137,7 @@ class StudioViewModel(
             )
 
     fun selectLanguage(language: TargetLanguage) {
+        profileCache?.updateLanguage(currentUserId, language)
         viewModelScope.launch {
             try {
                 progressRepository.setActiveLanguage(language)
@@ -141,6 +150,7 @@ class StudioViewModel(
     }
 
     fun selectDifficulty(difficulty: DifficultyLevel) {
+        profileCache?.updateDifficulty(currentUserId, difficulty)
         viewModelScope.launch {
             try {
                 progressRepository.setDifficulty(difficulty)

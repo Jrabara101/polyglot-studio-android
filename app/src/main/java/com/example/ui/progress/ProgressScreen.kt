@@ -55,6 +55,9 @@ import com.example.ui.studio.StudioUiState
 import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
 
+internal fun formatCountLabel(count: Long, singular: String, plural: String): String =
+    "$count ${if (count == 1L) singular else plural}"
+
 @Composable
 fun ProgressScreen(
     profileState: StudioUiState<UserProfile>,
@@ -161,7 +164,7 @@ fun ProgressScreen(
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = "${profile?.currentStreak ?: 0} days",
+                                text = formatCountLabel(profile?.currentStreak ?: 0L, "day", "days"),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -193,7 +196,7 @@ fun ProgressScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             StudioBadge(
-                                text = "${mastery?.gamesPlayed ?: 0} games",
+                                text = formatCountLabel(mastery?.gamesPlayed ?: 0L, "game", "games"),
                                 containerColor = palette.languageTint,
                                 contentColor = palette.languageAccent
                             )
