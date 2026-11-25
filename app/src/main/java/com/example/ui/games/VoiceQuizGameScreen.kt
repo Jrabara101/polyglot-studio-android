@@ -47,7 +47,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,7 +77,15 @@ import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
 import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+
+/** Computes (avgClarityPercent, xpEarned) strictly from graded phrases; skipped phrases earn nothing. */
+internal fun calculateVoiceRoundResult(gradedScores: List<Int>): Pair<Int, Int> {
+    if (gradedScores.isEmpty()) return 0 to 0
+    val avg = gradedScores.average().toInt().coerceIn(0, 100)
+    return avg to (40 + avg / 3)
+}
 
 @Composable
 fun VoiceQuizGameScreen(
@@ -126,7 +134,7 @@ fun VoiceQuizGameScreen(
     }
 
     var currentIndex by remember(roundKey, language, difficulty) { mutableIntStateOf(0) }
-    val scores = remember(roundKey, language, difficulty) { mutableStateListOf<Int>() }
+    val gradedScores = remember(roundKey, language, difficulty) { mutableStateMapOf<Int, Int>() }
     var evaluation by remember(roundKey, language, difficulty, currentIndex) {
         mutableStateOf<VoiceEvaluation?>(null)
     }
@@ -134,8 +142,33 @@ fun VoiceQuizGameScreen(
     var errorText by remember(roundKey, language, difficulty) { mutableStateOf<String?>(null) }
     var savedThisPrompt by remember(roundKey, language, difficulty, currentIndex) { mutableStateOf(false) }
     var startTimeMs by remember(roundKey, language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
-    var isSavingResult by remember { mutableStateOf(false) }
+    var saveState by remember(roundKey, language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
     var completedResult by remember(roundKey, language, difficulty) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var completedDurationSec by remember(roundKey, language, difficulty) { mutableIntStateOf(8) }
+
+    fun saveVoiceResult() {
+        val (avg, xp) = completedResult ?: return
+        if (gradedScores.isEmpty()) return
+        saveState = CompletionSaveState.Saving
+        scope.launch {
+            try {
+                onCompleteSession(
+                    GameType.VOICE,
+                    language,
+                    difficulty,
+                    avg,
+                    xp,
+                    completedDurationSec,
+                    "${language.displayName} Voice Arena ($avg% avg clarity, ${gradedScores.size}/${challenges.size} spoken)"
+                )
+                saveState = CompletionSaveState.Saved
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                saveState = CompletionSaveState.Failed
+            }
+        }
+    }
 
     val smoothAmp by animateFloatAsState(targetValue = liveAmplitude, label = "voiceAmp")
     val currentChallenge = challenges.getOrNull(currentIndex)
@@ -190,12 +223,26 @@ fun VoiceQuizGameScreen(
             ) {
                 if (completedResult != null) {
                     val (avgScore, xp) = completedResult!!
+                    val skippedAll = gradedScores.isEmpty()
                     GameCompletionCard(
                         gameType = GameType.VOICE,
                         scorePercent = avgScore,
                         xpEarned = xp,
-                        summaryText = "Spoke ${challenges.size} ${language.displayName} phrases with ${avgScore}% average pronunciation clarity.",
-                        isSaving = isSavingResult,
+                        summaryText = if (skippedAll) {
+                            "Skipped all ${challenges.size} ${language.displayName} phrases — nothing was saved."
+                        } else {
+                            "Spoke ${gradedScores.size}/${challenges.size} ${language.displayName} phrases with ${avgScore}% average pronunciation clarity."
+                        },
+                        isSaving = saveState == CompletionSaveState.Saving,
+                        syncLabel = when {
+                            skippedAll -> "Nothing to save"
+                            saveState == CompletionSaveState.Failed -> "Not saved yet"
+                            else -> null
+                        },
+                        saveError = if (saveState == CompletionSaveState.Failed) {
+                            "Couldn't save your result. Check your connection and retry."
+                        } else null,
+                        onRetrySave = if (saveState == CompletionSaveState.Failed) ::saveVoiceResult else null,
                         onPlayAgain = { roundKey++ },
                         onBackToStudio = onBack
                     )
@@ -419,11 +466,8 @@ fun VoiceQuizGameScreen(
                                                         language = language
                                                     )
                                                     evaluation = res
-                                                    if (scores.size == currentIndex) {
-                                                        scores.add(res.accuracyScore)
-                                                    } else if (currentIndex < scores.size) {
-                                                        scores[currentIndex] = maxOf(scores[currentIndex], res.accuracyScore)
-                                                    }
+                                                    val prev = gradedScores[currentIndex]
+                                                    gradedScores[currentIndex] = if (prev == null) res.accuracyScore else maxOf(prev, res.accuracyScore)
                                                 }
                                             } catch (e: Exception) {
                                                 errorText = e.localizedMessage ?: "Could not grade voice recording."
@@ -554,31 +598,13 @@ fun VoiceQuizGameScreen(
                     ) {
                         TactileButton(
                             onClick = {
-                                if (scores.size <= currentIndex) {
-                                    scores.add(60)
-                                }
                                 if (currentIndex + 1 < challenges.size) {
                                     currentIndex++
                                 } else {
-                                    val avg = if (scores.isEmpty()) 75 else scores.average().toInt().coerceIn(0, 100)
-                                    val xp = 40 + (avg / 3)
-                                    val duration = ((System.currentTimeMillis() - startTimeMs) / 1000L).toInt().coerceAtLeast(8)
-                                    completedResult = avg to xp
-                                    scope.launch {
-                                        isSavingResult = true
-                                        try {
-                                            onCompleteSession(
-                                                GameType.VOICE,
-                                                language,
-                                                difficulty,
-                                                avg,
-                                                xp,
-                                                duration,
-                                                "${language.displayName} Voice Arena ($avg% avg clarity)"
-                                            )
-                                        } finally {
-                                            isSavingResult = false
-                                        }
+                                    completedResult = calculateVoiceRoundResult(gradedScores.values.toList())
+                                    completedDurationSec = ((System.currentTimeMillis() - startTimeMs) / 1000L).toInt().coerceAtLeast(8)
+                                    if (gradedScores.isNotEmpty()) {
+                                        saveVoiceResult()
                                     }
                                 }
                             },

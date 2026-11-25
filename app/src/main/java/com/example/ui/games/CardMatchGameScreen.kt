@@ -60,6 +60,7 @@ import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileCard
 import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -119,8 +120,32 @@ fun CardMatchGameScreen(
     var isInputLocked by remember(roundKey, language, difficulty) { mutableStateOf(false) }
     var isSavedFeedback by remember { mutableStateOf<String?>(null) }
     var startTimeMs by remember(roundKey, language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
-    var isSavingResult by remember { mutableStateOf(false) }
+    var saveState by remember(roundKey, language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
     var completedResult by remember(roundKey, language, difficulty) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var completedDurationSec by remember(roundKey, language, difficulty) { mutableIntStateOf(5) }
+
+    fun saveCardResult() {
+        val (accuracy, xp) = completedResult ?: return
+        saveState = CompletionSaveState.Saving
+        scope.launch {
+            try {
+                onCompleteSession(
+                    GameType.CARDS,
+                    language,
+                    difficulty,
+                    accuracy,
+                    xp,
+                    completedDurationSec,
+                    "${language.displayName} Card Match ($accuracy%, ${bestCombo}x streak)"
+                )
+                saveState = CompletionSaveState.Saved
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                saveState = CompletionSaveState.Failed
+            }
+        }
+    }
 
     LaunchedEffect(selectedTiles) {
         if (selectedTiles.size == 2) {
@@ -151,22 +176,9 @@ fun CardMatchGameScreen(
             val accuracy = ((totalPairs.toFloat() / attempts.coerceAtLeast(totalPairs)) * 100f)
                 .toInt().coerceIn(45, 100)
             val xp = 35 + (accuracy / 4) + (bestCombo * 5)
-            val duration = ((System.currentTimeMillis() - startTimeMs) / 1000L).toInt().coerceAtLeast(5)
+            completedDurationSec = ((System.currentTimeMillis() - startTimeMs) / 1000L).toInt().coerceAtLeast(5)
             completedResult = accuracy to xp
-            isSavingResult = true
-            try {
-                onCompleteSession(
-                    GameType.CARDS,
-                    language,
-                    difficulty,
-                    accuracy,
-                    xp,
-                    duration,
-                    "${language.displayName} Card Match ($accuracy%, ${bestCombo}x streak)"
-                )
-            } finally {
-                isSavingResult = false
-            }
+            saveCardResult()
         }
     }
 
@@ -223,7 +235,12 @@ fun CardMatchGameScreen(
                         scorePercent = accuracy,
                         xpEarned = xp,
                         summaryText = "Paired all ${deck.size / 2} ${language.displayName} cards with a best combo of ${bestCombo}x.",
-                        isSaving = isSavingResult,
+                        isSaving = saveState == CompletionSaveState.Saving,
+                        syncLabel = if (saveState == CompletionSaveState.Failed) "Not saved yet" else null,
+                        saveError = if (saveState == CompletionSaveState.Failed) {
+                            "Couldn't save your result. Check your connection and retry."
+                        } else null,
+                        onRetrySave = if (saveState == CompletionSaveState.Failed) ::saveCardResult else null,
                         onPlayAgain = { roundKey++ },
                         onBackToStudio = onBack
                     )

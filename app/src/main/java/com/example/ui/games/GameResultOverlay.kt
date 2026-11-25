@@ -89,6 +89,8 @@ fun GameTopBar(
     }
 }
 
+enum class CompletionSaveState { Idle, Saving, Saved, Failed }
+
 @Composable
 fun GameCompletionCard(
     gameType: GameType,
@@ -96,8 +98,12 @@ fun GameCompletionCard(
     xpEarned: Int,
     summaryText: String,
     isSaving: Boolean,
-    /** Overrides the sync label, e.g. "Not saved". Null = Syncing… / Synced to Cloud. */
+    /** Overrides the sync label, e.g. "Not saved yet". Null = Syncing… / Synced to Cloud. */
     syncLabel: String? = null,
+    saveError: String? = null,
+    onRetrySave: (() -> Unit)? = null,
+    primaryActionLabel: String = "Play Again",
+    primaryActionTag: String = "play_again_button",
     onPlayAgain: () -> Unit,
     onBackToStudio: () -> Unit,
     modifier: Modifier = Modifier
@@ -204,6 +210,37 @@ fun GameCompletionCard(
                     }
                 }
             }
+            if (saveError != null && onRetrySave != null) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = palette.dangerSoft,
+                    border = BorderStroke(1.dp, palette.danger),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = saveError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = palette.danger
+                        )
+                        TactileButton(
+                            onClick = onRetrySave,
+                            enabled = !isSaving,
+                            containerColor = palette.danger,
+                            contentColor = Color.White,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("retry_save_button")
+                        ) {
+                            Text(if (isSaving) "Saving…" else "Retry Save")
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(18.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -215,11 +252,11 @@ fun GameCompletionCard(
                     contentColor = Color.White,
                     modifier = Modifier
                         .weight(1f)
-                        .testTag("play_again_button")
+                        .testTag(primaryActionTag)
                 ) {
                     Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Play Again")
+                    Text(primaryActionLabel)
                 }
                 TactileButton(
                     onClick = onBackToStudio,

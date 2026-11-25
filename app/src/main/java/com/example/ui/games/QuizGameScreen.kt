@@ -59,6 +59,7 @@ import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
 import com.example.ui.theme.LocalStudioPalette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
@@ -88,7 +89,31 @@ fun QuizGameScreen(
 
     var startTimeMs by remember(language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
     var completedResult by remember(language, difficulty) { mutableStateOf<Pair<Int, Int>?>(null) }
-    var isSavingResult by remember { mutableStateOf(false) }
+    var completedDurationSec by remember(language, difficulty) { mutableIntStateOf(5) }
+    var saveState by remember(language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
+
+    fun saveQuizResult() {
+        val (accuracy, xp) = completedResult ?: return
+        saveState = CompletionSaveState.Saving
+        scope.launch {
+            try {
+                onCompleteSession(
+                    GameType.QUIZ,
+                    language,
+                    difficulty,
+                    accuracy,
+                    xp,
+                    completedDurationSec,
+                    "${language.displayName} Quiz ($correctCount/${questions.size})"
+                )
+                saveState = CompletionSaveState.Saved
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                saveState = CompletionSaveState.Failed
+            }
+        }
+    }
 
     val question = questions[currentIdx.coerceIn(0, questions.lastIndex)]
     val isAnswered = selectedOption != null
@@ -128,13 +153,19 @@ fun QuizGameScreen(
                         scorePercent = accuracy,
                         xpEarned = xp,
                         summaryText = "Answered $correctCount/${questions.size} ${language.displayName} syntax challenges accurately.",
-                        isSaving = isSavingResult,
+                        isSaving = saveState == CompletionSaveState.Saving,
+                        syncLabel = if (saveState == CompletionSaveState.Failed) "Not saved yet" else null,
+                        saveError = if (saveState == CompletionSaveState.Failed) {
+                            "Couldn't save your result. Check your connection and retry."
+                        } else null,
+                        onRetrySave = if (saveState == CompletionSaveState.Failed) ::saveQuizResult else null,
                         onPlayAgain = {
                             currentIdx = 0
                             correctCount = 0
                             streak = 0
                             selectedOption = null
                             completedResult = null
+                            saveState = CompletionSaveState.Idle
                             startTimeMs = System.currentTimeMillis()
                         },
                         onBackToStudio = onBack
@@ -405,24 +436,9 @@ fun QuizGameScreen(
                                                 val accuracy = ((correctCount.toFloat() / questions.size.toFloat()) * 100f)
                                                     .toInt().coerceIn(0, 100)
                                                 val xp = 25 + (correctCount * 12)
-                                                val dur = ((System.currentTimeMillis() - startTimeMs) / 1000L).toInt().coerceAtLeast(5)
+                                                completedDurationSec = ((System.currentTimeMillis() - startTimeMs) / 1000L).toInt().coerceAtLeast(5)
                                                 completedResult = accuracy to xp
-                                                isSavingResult = true
-                                                scope.launch {
-                                                    try {
-                                                        onCompleteSession(
-                                                            GameType.QUIZ,
-                                                            language,
-                                                            difficulty,
-                                                            accuracy,
-                                                            xp,
-                                                            dur,
-                                                            "${language.displayName} Quiz ($correctCount/${questions.size})"
-                                                        )
-                                                    } finally {
-                                                        isSavingResult = false
-                                                    }
-                                                }
+                                                saveQuizResult()
                                             }
                                         },
                                         containerColor = MaterialTheme.colorScheme.primary,
