@@ -137,7 +137,12 @@ fun TactileButton(
 
     // Merge the inner clickable's semantics (click action, enabled state) into this outer node,
     // so a testTag passed in `modifier` points at the real button.
-    Box(modifier = modifier.semantics(mergeDescendants = true) { if (!enabled) disabled() }.padding(bottom = shadowOffset)) {
+    Box(
+        modifier = modifier
+            .semantics(mergeDescendants = true) { if (!enabled) disabled() }
+            .padding(bottom = shadowOffset),
+        propagateMinConstraints = true
+    ) {
         Box(
             modifier = Modifier
                 .matchParentSize()
