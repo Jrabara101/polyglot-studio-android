@@ -1,9 +1,13 @@
 package com.example.ui.games
 
 import android.content.Context
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -11,6 +15,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.content.StoryCatalog
 import com.example.data.model.DifficultyLevel
@@ -266,5 +272,36 @@ class StoryGameScreenTest {
         assertEquals(listOf(GameType.STORY), saved)
         assertTrue(compose.onAllNodesWithText("Not saved yet").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithText("Synced to Cloud").assertExists()
+    }
+
+    @Test
+    fun completion_card_with_offline_error_is_scrollable_on_compact_height() {
+        compose.setContent {
+            PolyglotStudioTheme(activeLanguage = TargetLanguage.FRENCH, darkTheme = false) {
+                Box(modifier = Modifier.size(width = 411.dp, height = 420.dp)) {
+                    StoryGameScreen(
+                        language = TargetLanguage.FRENCH,
+                        difficulty = DifficultyLevel.BEGINNER,
+                        speakingKey = null,
+                        onSpeak = { _, _, _, _ -> },
+                        onSavePhrase = { _, _, _, _, _ -> },
+                        onCompleteSession = { _, _, _, _, _, _, _ ->
+                            throw IOException("Device offline")
+                        },
+                        onBack = {}
+                    )
+                }
+            }
+        }
+
+        repeat(3) {
+            compose.onNodeWithTag("story_choice_0").performClick()
+            compose.waitForIdle()
+        }
+        compose.onNodeWithTag("story_complete_button").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("retry_save_button").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("next_story_button").performScrollTo().assertIsDisplayed()
     }
 }

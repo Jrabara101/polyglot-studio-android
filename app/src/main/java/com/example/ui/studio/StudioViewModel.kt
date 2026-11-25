@@ -179,6 +179,14 @@ class StudioViewModel(
                     ?: StoryCatalog.audioAssetFor(language, text)
                 if (clip != null && clipPlayer.play(clip, slow)) return@launch
 
+                // Story Café is 100% offline: never block on Gemini TTS if a bundled clip fails.
+                if (key.startsWith("story_")) {
+                    if (!deviceSpeech.speak(text, language.locale(), slow)) {
+                        _ttsError.value = "Speech audio unavailable right now."
+                    }
+                    return@launch
+                }
+
                 try {
                     val pcm = aiRepository.synthesizeSpeechPcm(text = text, language = language, slow = slow)
                     audioPlayer.playPcm24k(pcm)

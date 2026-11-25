@@ -189,18 +189,7 @@ fun StudioHomeScreen(
                 }
             }
 
-            if (profileState is StudioUiState.Loading) {
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Syncing cloud studio…", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            } else if (profileState is StudioUiState.Error) {
+            if (profileState is StudioUiState.Error) {
                 item {
                     Surface(
                         shape = RoundedCornerShape(14.dp),

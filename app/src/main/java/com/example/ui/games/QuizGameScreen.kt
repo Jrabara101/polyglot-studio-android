@@ -87,13 +87,15 @@ fun QuizGameScreen(
     var deepExplanation by remember(currentIdx, questions) { mutableStateOf<String?>(null) }
     var isLoadingDeep by remember { mutableStateOf(false) }
 
-    var startTimeMs by remember(language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
-    var completedResult by remember(language, difficulty) { mutableStateOf<Pair<Int, Int>?>(null) }
-    var completedDurationSec by remember(language, difficulty) { mutableIntStateOf(5) }
-    var saveState by remember(language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
+    var roundKey by remember(language, difficulty) { mutableIntStateOf(0) }
+    var startTimeMs by remember(roundKey, language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
+    var completedResult by remember(roundKey, language, difficulty) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var completedDurationSec by remember(roundKey, language, difficulty) { mutableIntStateOf(5) }
+    var saveState by remember(roundKey, language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
 
     fun saveQuizResult() {
         val (accuracy, xp) = completedResult ?: return
+        if (saveState == CompletionSaveState.Saving || saveState == CompletionSaveState.Saved) return
         saveState = CompletionSaveState.Saving
         scope.launch {
             try {
@@ -164,9 +166,7 @@ fun QuizGameScreen(
                             correctCount = 0
                             streak = 0
                             selectedOption = null
-                            completedResult = null
-                            saveState = CompletionSaveState.Idle
-                            startTimeMs = System.currentTimeMillis()
+                            roundKey++
                         },
                         onBackToStudio = onBack
                     )

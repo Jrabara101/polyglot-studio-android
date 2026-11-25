@@ -73,7 +73,7 @@ object StoryCatalog {
     fun audioAssetFor(language: TargetLanguage, text: String): String? =
         loaded()?.textAudioIndex?.get(Lexicon.indexKey(language, text))
 
-    /** Resolves a speaker key like "story_node_<storyId>_<nodeId>" to its exact bundled clip. */
+    /** Resolves a speaker key like "story_node_<storyId>|<nodeId>" to its exact bundled clip. */
     fun audioAssetForSpeakerKey(language: TargetLanguage, key: String): String? {
         if (!key.startsWith(SPEAKER_KEY_PREFIX)) return null
         val rest = key.removePrefix(SPEAKER_KEY_PREFIX)

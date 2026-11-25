@@ -149,6 +149,7 @@ fun VoiceQuizGameScreen(
     fun saveVoiceResult() {
         val (avg, xp) = completedResult ?: return
         if (gradedScores.isEmpty()) return
+        if (saveState == CompletionSaveState.Saving || saveState == CompletionSaveState.Saved) return
         saveState = CompletionSaveState.Saving
         scope.launch {
             try {

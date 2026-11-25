@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Check
@@ -126,6 +128,7 @@ fun CardMatchGameScreen(
 
     fun saveCardResult() {
         val (accuracy, xp) = completedResult ?: return
+        if (saveState == CompletionSaveState.Saving || saveState == CompletionSaveState.Saved) return
         saveState = CompletionSaveState.Saving
         scope.launch {
             try {
@@ -229,7 +232,13 @@ fun CardMatchGameScreen(
 
             if (completedResult != null) {
                 val (accuracy, xp) = completedResult!!
-                Box(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
                     GameCompletionCard(
                         gameType = GameType.CARDS,
                         scorePercent = accuracy,

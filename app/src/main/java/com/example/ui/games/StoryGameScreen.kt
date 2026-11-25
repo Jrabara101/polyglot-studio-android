@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -153,8 +155,12 @@ fun StoryGameScreen(
         mutableStateOf<String?>(null)
     }
 
-    LaunchedEffect(turns.size, story.id, roundKey) {
-        if (turns.isNotEmpty()) {
+    LaunchedEffect(language, difficulty, story.id, roundKey) {
+        listState.scrollToItem(0)
+    }
+
+    LaunchedEffect(turns.size) {
+        if (turns.size > 1) {
             // Item 0 in LazyColumn is the scenario header card, so the last turn is at index turns.size.
             listState.animateScrollToItem(turns.size)
         }
@@ -325,7 +331,13 @@ fun StoryGameScreen(
             if (completedResult != null) {
                 val (avgScore, xp) = completedResult!!
                 val hasMultipleStories = stories.size > 1
-                Box(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
                     GameCompletionCard(
                         gameType = GameType.STORY,
                         scorePercent = avgScore,

@@ -64,7 +64,7 @@ Audited **2026-11-25** across:
 - **LexiMatch Cards:** 12-card grid renders cleanly; card tap flips and reveals Spanish vocabulary card (`train` / `Travel`); back navigation returns cleanly.
 - **Ink & Stroke Studio:** Spanish `ñ` guide renders cleanly; `Undo`/`Clear` start disabled and enable immediately after drawing a stroke; `Guide`, `Check`, and `Skip this one` all render cleanly with no shadow defect.
 - **Syntax Sprint Quiz:** Selecting correct option (`B. estoy`) highlights green with check icon, increments `Streak 0` → `Streak 1`, and displays grammar explanation, `Ask Gemini Why`, and `Next →`.
-- **Echo Voice Arena:** Prompt, phonetics, waveform, and controls render (aside from `TactileButton` shadow bug A1).
-- **Story Café Dialogues:** Madrid Atocha illustration, host dialogue, reply selection, user bubble (`YOU`), turn counter (`Turn 1/3+`), and reply spinner all work.
+- **Echo Voice Arena:** Prompt, phonetics, waveform, and controls render cleanly (with `TactileButton` shadow bug A1 resolved and verified live).
+- **Story Café Dialogues:** 100% offline branching stories across Japanese (34), Spanish (33), and French (33) with Story Picker (`1/12` JP, `1/11` ES/FR), instant 3-turn branching, and 600 bundled Kokoro `.m4a` clips verified live with zero network timeouts.
 - **Lumi AI Tutor:** Language switcher, `GEMINI LIVE` Talk card, suggestion chips, coach intro card, and bottom input bar render cleanly with no bottom-bar overlap.
 - **Progress & Phrasebook:** XP, streak, language selector, mastery bars, phrasebook, and session list all load and scroll cleanly.
