@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.example.core.configureAppCheck
 import com.example.data.content.Lexicon
+import com.example.data.content.StoryCatalog
 import com.example.ui.navigation.PolyglotAppRoot
 
 class MainActivity : ComponentActivity() {
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Lexicon.init(applicationContext)
+        StoryCatalog.init(applicationContext)
         configureAppCheck(this, intent)
         setContent {
             PolyglotAppRoot()

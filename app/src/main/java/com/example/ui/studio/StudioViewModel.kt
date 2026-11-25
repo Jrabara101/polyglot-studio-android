@@ -8,6 +8,7 @@ import com.example.audio.DeviceSpeech
 import com.example.audio.PcmAudioPlayer
 import com.example.data.cache.ProfileSummaryCache
 import com.example.data.content.Lexicon
+import com.example.data.content.StoryCatalog
 import com.example.data.ai.FirebaseAiRepository
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameSessionRecord
@@ -173,7 +174,9 @@ class StudioViewModel(
         ttsJob = viewModelScope.launch {
             _speakingKey.value = key
             try {
-                val clip = Lexicon.audioAssetFor(language, text)
+                val clip = StoryCatalog.audioAssetForSpeakerKey(language, key)
+                    ?: Lexicon.audioAssetFor(language, text)
+                    ?: StoryCatalog.audioAssetFor(language, text)
                 if (clip != null && clipPlayer.play(clip, slow)) return@launch
 
                 try {
