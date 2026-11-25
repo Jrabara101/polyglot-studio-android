@@ -26,43 +26,75 @@ class StoryCatalogTest {
     }
 
     @Test
-    fun japanese_has_34_stories_split_by_level() {
-        val all = StoryCatalog.stories(TargetLanguage.JAPANESE)
-        assertEquals("Japanese story count", 34, all.size)
+    fun catalog_has_100_stories_split_by_language_and_level() {
+        val jp = StoryCatalog.stories(TargetLanguage.JAPANESE)
+        val es = StoryCatalog.stories(TargetLanguage.SPANISH)
+        val fr = StoryCatalog.stories(TargetLanguage.FRENCH)
+
+        assertEquals("Total story count", 100, jp.size + es.size + fr.size)
+
+        assertEquals("Japanese story count", 34, jp.size)
         assertEquals(12, StoryCatalog.stories(TargetLanguage.JAPANESE, DifficultyLevel.BEGINNER).size)
         assertEquals(11, StoryCatalog.stories(TargetLanguage.JAPANESE, DifficultyLevel.INTERMEDIATE).size)
         assertEquals(11, StoryCatalog.stories(TargetLanguage.JAPANESE, DifficultyLevel.ADVANCED).size)
-        assertEquals("Unique Japanese story IDs", 34, all.map { it.id }.toSet().size)
-        assertEquals("Unique Japanese story titles", 34, all.map { it.title }.toSet().size)
+        assertEquals("Unique Japanese story IDs", 34, jp.map { it.id }.toSet().size)
+        assertEquals("Unique Japanese story titles", 34, jp.map { it.title }.toSet().size)
+
+        assertEquals("Spanish story count", 33, es.size)
+        assertEquals(11, StoryCatalog.stories(TargetLanguage.SPANISH, DifficultyLevel.BEGINNER).size)
+        assertEquals(11, StoryCatalog.stories(TargetLanguage.SPANISH, DifficultyLevel.INTERMEDIATE).size)
+        assertEquals(11, StoryCatalog.stories(TargetLanguage.SPANISH, DifficultyLevel.ADVANCED).size)
+        assertEquals("Unique Spanish story IDs", 33, es.map { it.id }.toSet().size)
+        assertEquals("Unique Spanish story titles", 33, es.map { it.title }.toSet().size)
+
+        assertEquals("French story count", 33, fr.size)
+        assertEquals(11, StoryCatalog.stories(TargetLanguage.FRENCH, DifficultyLevel.BEGINNER).size)
+        assertEquals(11, StoryCatalog.stories(TargetLanguage.FRENCH, DifficultyLevel.INTERMEDIATE).size)
+        assertEquals(11, StoryCatalog.stories(TargetLanguage.FRENCH, DifficultyLevel.ADVANCED).size)
+        assertEquals("Unique French story IDs", 33, fr.map { it.id }.toSet().size)
+        assertEquals("Unique French story titles", 33, fr.map { it.title }.toSet().size)
     }
 
     @Test
-    fun every_loaded_japanese_story_is_a_valid_3_turn_6_node_diamond_dag() {
-        val stories = StoryCatalog.stories(TargetLanguage.JAPANESE)
-        assertTrue("Expected Japanese stories to be loaded", stories.isNotEmpty())
-        for (story in stories) {
+    fun every_loaded_story_is_a_valid_3_turn_6_node_diamond_dag() {
+        val allStories = TargetLanguage.entries.flatMap { StoryCatalog.stories(it) }
+        assertEquals("Expected all 100 stories to be loaded", 100, allStories.size)
+        for (story in allStories) {
             assertValidDiamondStory(story)
         }
     }
 
     @Test
-    fun every_japanese_story_node_has_bundled_kokoro_clip() {
-        val stories = StoryCatalog.stories(TargetLanguage.JAPANESE)
-        assertEquals(34, stories.size)
-        for (story in stories) {
-            for (node in story.nodes.values) {
-                val expected = "audio/stories/japanese/${story.id}_${node.id}.m4a"
-                assertEquals(
-                    "Missing clip for ${story.id}/${node.id}",
-                    expected,
-                    StoryCatalog.audioAssetFor(TargetLanguage.JAPANESE, story.id, node.id)
-                )
-                assertNotNull(
-                    "Normalized lookup missing for ${story.id}/${node.id}",
-                    StoryCatalog.audioAssetFor(TargetLanguage.JAPANESE, node.npcText)
-                )
+    fun every_story_node_has_bundled_kokoro_clip() {
+        var clipCount = 0
+        for (language in TargetLanguage.entries) {
+            val stories = StoryCatalog.stories(language)
+            assertTrue("Expected stories for ${language.code}", stories.isNotEmpty())
+            for (story in stories) {
+                for (node in story.nodes.values) {
+                    val expected = "audio/stories/${language.code}/${story.id}_${node.id}.m4a"
+                    assertEquals(
+                        "Missing clip for ${language.code}/${story.id}/${node.id}",
+                        expected,
+                        StoryCatalog.audioAssetFor(language, story.id, node.id)
+                    )
+                    assertEquals(
+                        "Speaker key lookup missing for ${language.code}/${story.id}/${node.id}",
+                        expected,
+                        StoryCatalog.audioAssetForSpeakerKey(
+                            language,
+                            StoryCatalog.speakerKey(story.id, node.id)
+                        )
+                    )
+                    assertNotNull(
+                        "Normalized lookup missing for ${language.code}/${story.id}/${node.id}",
+                        StoryCatalog.audioAssetFor(language, node.npcText)
+                    )
+                    clipCount++
+                }
             }
         }
+        assertEquals("Total Kokoro story clips", 600, clipCount)
     }
 
     private fun assertValidDiamondStory(story: StoryDefinition) {
