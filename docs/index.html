@@ -7,12 +7,15 @@
 <meta name="description" content="Learn Japanese, Spanish and French through five short games and an AI speech coach. Free for Android 7.0+.">
 <meta property="og:title" content="Polyglot Studio">
 <meta property="og:description" content="Play your way to fluency. Japanese, Spanish and French for Android.">
-<meta property="og:image" content="assets/img_welcome_studio.webp">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://polyglot-studio-beryl.vercel.app/">
+<meta property="og:image" content="https://polyglot-studio-beryl.vercel.app/assets/img_welcome_studio.webp">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#FAF7F2">
 <link rel="icon" href="assets/ic_studio_emblem.webp" type="image/webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=optional" rel="stylesheet">
 <style>
 :root{
   --parchment:#FAF7F2; --paper:#FFFFFF; --warm:#F2ECE1; --line:#DCD3C4;
@@ -80,7 +83,7 @@ a{color:inherit}
 .board__head p{margin:2px 0 0;font-size:.95rem;color:var(--muted)}
 .combo{font:600 1rem var(--display);padding:4px 12px;border-radius:999px;background:var(--warm);white-space:nowrap;transition:background-color .2s,color .2s}
 .combo.hot{background:#F59E0B;color:var(--ink)}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;min-height:276px}
 .tile{position:relative;min-height:84px;padding:12px 14px;border:2.5px solid var(--ink);border-radius:var(--r-md);background:var(--parchment);box-shadow:0 var(--press) 0 var(--ink);font:600 1.25rem/1.2 var(--display);color:var(--ink);cursor:pointer;text-align:center;transition:transform .12s ease-out,box-shadow .12s ease-out,background-color .2s,border-color .2s}
 .tile small{display:block;font:500 .82rem var(--body);color:var(--muted);margin-top:4px}
 .tile--meaning{font-family:var(--body);font-size:1.02rem;font-weight:600}
@@ -127,7 +130,7 @@ section{padding:88px 0}
 .tutor{background:var(--ink);color:var(--parchment);border-radius:var(--r-lg);padding:56px;display:grid;grid-template-columns:1fr 1.1fr;gap:48px;align-items:center}
 .tutor .sec-title{color:var(--parchment)}
 .tutor .sec-lede{color:#CFC8DA;margin-bottom:26px}
-.tutor img{border-radius:var(--r-md);border:3px solid var(--parchment)}
+.tutor img{width:100%;aspect-ratio:1000/558;object-fit:cover;border-radius:var(--r-md);border:3px solid var(--parchment)}
 .tutor ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}
 .tutor li{display:flex;gap:12px;align-items:flex-start}
 .tutor li svg{flex:none;width:24px;height:24px;color:#B79CFF;margin-top:2px}
@@ -148,7 +151,7 @@ section{padding:88px 0}
 
 footer{padding:40px 0 48px;color:var(--muted);font-size:.95rem}
 footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:center}
-footer a{font-weight:600;color:var(--ink)}
+footer a{display:inline-flex;align-items:center;min-height:44px;font-weight:600;color:var(--ink)}
 
 /* responsive hero; on phones the QR is pointless, so the hero leads with the download button */
 @media (max-width:960px){
@@ -157,11 +160,10 @@ footer a{font-weight:600;color:var(--ink)}
 }
 @media (max-width:600px){
   section{padding:64px 0}
+  .grid{min-height:252px}
   .tile{font-size:1.1rem;min-height:76px}
   .board{padding:20px 16px}
-  .nav .btn span.long{display:none}
 }
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -183,7 +185,7 @@ footer a{font-weight:600;color:var(--ink)}
 <main id="top">
   <div class="wrap hero">
     <div>
-      <h1><span class="l">Play your way</span><span class="l">to fluency.</span></h1>
+      <h1><span class="l">Play your way</span> <span class="l">to fluency.</span></h1>
       <p class="lede">Learn Japanese, Spanish and French through five short games and an AI coach that listens to you speak.</p>
       <ul class="langs" aria-label="Languages">
         <li class="jp" lang="ja"><span>日本語</span></li>
