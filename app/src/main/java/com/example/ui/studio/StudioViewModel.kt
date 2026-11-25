@@ -3,7 +3,10 @@ package com.example.ui.studio
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.audio.AssetClipPlayer
+import com.example.audio.DeviceSpeech
 import com.example.audio.PcmAudioPlayer
+import com.example.data.content.Lexicon
 import com.example.data.ai.FirebaseAiRepository
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameSessionRecord
@@ -26,6 +29,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 sealed interface StudioUiState<out T> {
     data object Loading : StudioUiState<Nothing>
@@ -37,6 +41,8 @@ class StudioViewModel(
     private val progressRepository: ProgressRepository,
     private val aiRepository: FirebaseAiRepository,
     private val audioPlayer: PcmAudioPlayer,
+    private val clipPlayer: AssetClipPlayer,
+    private val deviceSpeech: DeviceSpeech,
     private val currentUserId: String
 ) : ViewModel() {
 
@@ -146,20 +152,31 @@ class StudioViewModel(
         }
     }
 
+    /**
+     * Speaks [text]: the bundled pronunciation clip if one exists, otherwise Gemini TTS,
+     * otherwise the phone's own offline voice.
+     */
     fun speakText(key: String, text: String, language: TargetLanguage, slow: Boolean = false) {
         ttsJob?.cancel()
-        audioPlayer.stop()
+        stopAllAudio()
         _ttsError.value = null
         ttsJob = viewModelScope.launch {
             _speakingKey.value = key
             try {
-                val pcm = aiRepository.synthesizeSpeechPcm(text = text, language = language, slow = slow)
-                audioPlayer.playPcm24k(pcm)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "TTS playback failed", e)
-                _ttsError.value = e.localizedMessage ?: "Speech audio unavailable right now."
+                val clip = Lexicon.audioAssetFor(language, text)
+                if (clip != null && clipPlayer.play(clip, slow)) return@launch
+
+                try {
+                    val pcm = aiRepository.synthesizeSpeechPcm(text = text, language = language, slow = slow)
+                    audioPlayer.playPcm24k(pcm)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Gemini TTS failed, trying device voice", e)
+                    if (!deviceSpeech.speak(text, language.locale(), slow)) {
+                        _ttsError.value = e.localizedMessage ?: "Speech audio unavailable right now."
+                    }
+                }
             } finally {
                 if (_speakingKey.value == key) {
                     _speakingKey.value = null
@@ -239,7 +256,20 @@ class StudioViewModel(
     override fun onCleared() {
         super.onCleared()
         ttsJob?.cancel()
+        stopAllAudio()
+        deviceSpeech.shutdown()
+    }
+
+    private fun stopAllAudio() {
         audioPlayer.stop()
+        clipPlayer.stop()
+        deviceSpeech.stop()
+    }
+
+    private fun TargetLanguage.locale(): Locale = when (this) {
+        TargetLanguage.JAPANESE -> Locale.JAPAN
+        TargetLanguage.SPANISH -> Locale("es", "ES")
+        TargetLanguage.FRENCH -> Locale.FRANCE
     }
 
     private companion object {

@@ -23,3 +23,6 @@ debug.keystore
 *.keystore
 keystore.properties
 *-password*.txt
+
+# Local text-to-speech tool environment
+tools/.venv-kokoro/

@@ -96,6 +96,8 @@ fun GameCompletionCard(
     xpEarned: Int,
     summaryText: String,
     isSaving: Boolean,
+    /** Overrides the sync label, e.g. "Not saved". Null = Syncing… / Synced to Cloud. */
+    syncLabel: String? = null,
     onPlayAgain: () -> Unit,
     onBackToStudio: () -> Unit,
     modifier: Modifier = Modifier
@@ -195,7 +197,7 @@ fun GameCompletionCard(
                             )
                         }
                         Text(
-                            text = if (isSaving) "Syncing…" else "Synced to Cloud",
+                            text = syncLabel ?: if (isSaving) "Syncing…" else "Synced to Cloud",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

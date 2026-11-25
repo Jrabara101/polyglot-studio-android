@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polyglot Studio: play your way to fluency</title>
+<meta name="description" content="Learn Japanese, Spanish and French through five short games and an AI speech coach. Free for Android 7.0+.">
+<meta property="og:title" content="Polyglot Studio">
+<meta property="og:description" content="Play your way to fluency. Japanese, Spanish and French for Android.">
+<meta property="og:image" content="assets/img_welcome_studio.webp">
+<meta name="theme-color" content="#FAF7F2">
+<link rel="icon" href="assets/ic_studio_emblem.webp" type="image/webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --parchment:#FAF7F2; --paper:#FFFFFF; --warm:#F2ECE1; --line:#DCD3C4;
+  --ink:#1E1B24; --muted:#5D576B;
+  --jp:#E84A3C; --jp-soft:#FFE8E5; --jp-deep:#B8301F;
+  --es:#E89B1C; --es-soft:#FFF3D6; --es-deep:#8A5A08;
+  --fr:#2F6FED; --fr-soft:#E6EEFF; --fr-deep:#1F4FB8;
+  --ai:#7C4DFF; --ai-soft:#EDE7FF;
+  --mint:#1EA87A;
+  --display:"Fredoka",system-ui,sans-serif;
+  --body:"Plus Jakarta Sans",system-ui,sans-serif;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --press:4px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--parchment);color:var(--ink);font:400 1.0625rem/1.6 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+[hidden]{display:none!important}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--fr);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+@media (max-width:600px){.wrap{padding:0 16px}}
+
+/* brand stripe: the same three-band rule as the business cards */
+.stripe{display:grid;grid-template-columns:repeat(3,1fr);height:10px}
+.stripe i:nth-child(1){background:var(--jp)}
+.stripe i:nth-child(2){background:var(--es)}
+.stripe i:nth-child(3){background:var(--fr)}
+
+/* tactile button: ink outline and a hard drop that collapses when pressed, like the app's controls */
+.btn{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 22px;border:2.5px solid var(--ink);border-radius:16px;font:600 1.05rem var(--display);text-decoration:none;cursor:pointer;background:var(--paper);color:var(--ink);box-shadow:0 var(--press) 0 var(--ink);transition:transform .12s ease-out,box-shadow .12s ease-out,background-color .2s}
+.btn:hover{background:var(--warm)}
+.btn:active{transform:translateY(var(--press));box-shadow:0 0 0 var(--ink)}
+.btn--primary{background:var(--ink);color:var(--parchment)}
+.btn--primary:hover{background:#3a3545}
+.btn svg{width:22px;height:22px;flex:none}
+
+/* nav */
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:18px;padding-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+.brand img{width:44px;height:44px;border-radius:12px;background:var(--ink)}
+.brand span{font:700 1.35rem var(--display)}
+.nav .btn{min-height:44px;padding:0 16px;font-size:.98rem}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:56px;align-items:center;padding-top:40px;padding-bottom:88px}
+.hero h1{font:700 clamp(2.9rem,6.6vw,5.4rem)/.98 var(--display);letter-spacing:-.02em;margin:0 0 22px}
+.hero h1 .l{display:block}
+.hero p.lede{font-size:1.2rem;color:var(--muted);max-width:30ch;margin:0 0 30px}
+.langs{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 30px;padding:0;list-style:none}
+.langs li{display:flex;align-items:center;gap:8px;padding:6px 16px;border:2px solid;border-radius:999px;font:600 1.02rem var(--display);background:var(--paper)}
+.langs li::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor}
+.langs .jp{border-color:var(--jp);color:var(--jp-deep)}
+.langs .es{border-color:var(--es);color:var(--es-deep)}
+.langs .fr{border-color:var(--fr);color:var(--fr-deep)}
+.langs li span{color:var(--ink)}
+.ctas{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.fine{margin:16px 0 0;font-size:.92rem;color:var(--muted)}
+
+/* the playable board — the one loud thing on the page */
+.board{position:relative;background:var(--paper);border:3px solid var(--ink);border-radius:var(--r-lg);box-shadow:0 10px 0 var(--ink);padding:26px 24px 24px}
+.board__head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:18px}
+.board__head h2{font:700 1.5rem var(--display);margin:0}
+.board__head p{margin:2px 0 0;font-size:.95rem;color:var(--muted)}
+.combo{font:600 1rem var(--display);padding:4px 12px;border-radius:999px;background:var(--warm);white-space:nowrap;transition:background-color .2s,color .2s}
+.combo.hot{background:#F59E0B;color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.tile{position:relative;min-height:84px;padding:12px 14px;border:2.5px solid var(--ink);border-radius:var(--r-md);background:var(--parchment);box-shadow:0 var(--press) 0 var(--ink);font:600 1.25rem/1.2 var(--display);color:var(--ink);cursor:pointer;text-align:center;transition:transform .12s ease-out,box-shadow .12s ease-out,background-color .2s,border-color .2s}
+.tile small{display:block;font:500 .82rem var(--body);color:var(--muted);margin-top:4px}
+.tile--meaning{font-family:var(--body);font-size:1.02rem;font-weight:600}
+.tile:hover{background:var(--warm)}
+.tile[aria-pressed="true"]{transform:translateY(var(--press));box-shadow:0 0 0 var(--ink);background:var(--warm);border-color:var(--ink)}
+.tile.done{cursor:default;transform:translateY(var(--press));box-shadow:0 0 0 var(--ink)}
+.tile.done.jp{background:var(--jp-soft);border-color:var(--jp)}
+.tile.done.es{background:var(--es-soft);border-color:var(--es)}
+.tile.done.fr{background:var(--fr-soft);border-color:var(--fr)}
+.tile.miss{animation:shake .32s}
+@keyframes shake{25%{translate:-6px 0}50%{translate:5px 0}75%{translate:-3px 0}}
+.board__foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;min-height:44px}
+.board__foot p{margin:0;font-size:.95rem;color:var(--muted)}
+.board__foot .btn{min-height:44px;font-size:.95rem;padding:0 16px}
+.board.won .board__foot p{color:var(--ink);font-weight:600}
+
+/* sections */
+section{padding:88px 0}
+.sec-title{font:700 clamp(2rem,4.2vw,3.1rem)/1.05 var(--display);letter-spacing:-.01em;margin:0 0 14px;max-width:18ch}
+.sec-lede{color:var(--muted);font-size:1.12rem;max-width:56ch;margin:0 0 44px}
+
+/* games list — rows, not a card grid */
+.games{list-style:none;margin:0;padding:0;border-top:2.5px solid var(--ink)}
+.games li{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.7fr) minmax(0,1.6fr);gap:24px;align-items:baseline;padding:26px 0;border-bottom:1.5px solid var(--line)}
+.games h3{font:600 1.6rem/1.15 var(--display);margin:0}
+.games .skill{font:600 1rem var(--display);padding:3px 12px;border-radius:999px;background:var(--warm);justify-self:start}
+.games p{margin:0;color:var(--muted)}
+@media (max-width:760px){.games li{grid-template-columns:1fr;gap:8px}}
+
+/* languages */
+.places{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.place{margin:0}
+.place img{aspect-ratio:900/672;object-fit:cover;border-radius:var(--r-md);border:3px solid var(--ink)}
+.place.jp img{box-shadow:8px 8px 0 var(--jp)}
+.place.es img{box-shadow:8px 8px 0 var(--es)}
+.place.fr img{box-shadow:8px 8px 0 var(--fr)}
+.place figcaption{padding:22px 4px 0}
+.place h3{font:600 1.45rem var(--display);margin:0 0 6px}
+.phrase{font:600 1.3rem var(--display);margin:0}
+.phrase + p{margin:2px 0 0;color:var(--muted);font-size:.98rem}
+@media (max-width:860px){.places{grid-template-columns:1fr;max-width:520px}}
+
+/* tutor */
+.tutor{background:var(--ink);color:var(--parchment);border-radius:var(--r-lg);padding:56px;display:grid;grid-template-columns:1fr 1.1fr;gap:48px;align-items:center}
+.tutor .sec-title{color:var(--parchment)}
+.tutor .sec-lede{color:#CFC8DA;margin-bottom:26px}
+.tutor img{border-radius:var(--r-md);border:3px solid var(--parchment)}
+.tutor ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+.tutor li{display:flex;gap:12px;align-items:flex-start}
+.tutor li svg{flex:none;width:24px;height:24px;color:#B79CFF;margin-top:2px}
+@media (max-width:860px){.tutor{grid-template-columns:1fr;padding:32px 22px}}
+
+/* install */
+.install{display:grid;grid-template-columns:1.3fr 1fr;gap:56px;align-items:start}
+.steps{list-style:none;margin:0 0 32px;padding:0;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:18px 0;border-bottom:1.5px solid var(--line)}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:44px;height:44px;border:2.5px solid var(--ink);border-radius:50%;font:700 1.2rem var(--display);background:var(--paper)}
+.steps h3{font:600 1.25rem var(--display);margin:6px 0 4px}
+.steps p{margin:0;color:var(--muted)}
+.qr{background:var(--paper);border:3px solid var(--ink);border-radius:var(--r-lg);box-shadow:0 10px 0 var(--ink);padding:28px;text-align:center}
+.qr img{width:100%;max-width:240px;margin:0 auto 18px}
+.qr h3{font:700 1.5rem var(--display);margin:0 0 4px}
+.qr p{margin:0;color:var(--muted);font-size:.95rem;overflow-wrap:anywhere}
+@media (max-width:860px){.install{grid-template-columns:1fr}.qr{max-width:380px}}
+
+footer{padding:40px 0 48px;color:var(--muted);font-size:.95rem}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:center}
+footer a{font-weight:600;color:var(--ink)}
+
+/* responsive hero; on phones the QR is pointless, so the hero leads with the download button */
+@media (max-width:960px){
+  .hero{grid-template-columns:minmax(0,1fr);gap:44px;padding-top:16px}
+  .hero p.lede{max-width:40ch}
+}
+@media (max-width:600px){
+  section{padding:64px 0}
+  .tile{font-size:1.1rem;min-height:76px}
+  .board{padding:20px 16px}
+  .nav .btn span.long{display:none}
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="stripe" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<header class="wrap nav">
+  <a class="brand" href="#top" aria-label="Polyglot Studio home">
+    <img src="assets/ic_studio_emblem.webp" alt="" width="44" height="44">
+    <span>Polyglot Studio</span>
+  </a>
+  <a class="btn btn--primary" href="#install"><span>Get the app</span></a>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <h1><span class="l">Play your way</span><span class="l">to fluency.</span></h1>
+      <p class="lede">Learn Japanese, Spanish and French through five short games and an AI coach that listens to you speak.</p>
+      <ul class="langs" aria-label="Languages">
+        <li class="jp" lang="ja"><span>日本語</span></li>
+        <li class="es" lang="es"><span>Español</span></li>
+        <li class="fr" lang="fr"><span>Français</span></li>
+      </ul>
+      <div class="ctas">
+        <a class="btn btn--primary" href="https://github.com/Jrabara101/polyglot-studio-android/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
+          Download for Android
+        </a>
+        <a class="btn" href="https://github.com/Jrabara101/polyglot-studio-android">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          View source
+        </a>
+      </div>
+      <p class="fine">Free. Android 7.0 or newer. Sign in with Google or play as a guest.</p>
+    </div>
+
+    <div class="board" id="board">
+      <div class="board__head">
+        <div>
+          <h2>Try a round</h2>
+          <p>Tap a word, then tap what it means.</p>
+        </div>
+        <span class="combo" id="combo" aria-hidden="true">Combo ×0</span>
+      </div>
+      <div class="grid" id="grid" role="group" aria-label="Matching cards"></div>
+      <div class="board__foot">
+        <p id="status" aria-live="polite">3 pairs to find.</p>
+        <button class="btn" id="again" type="button" hidden>Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="games">
+    <div class="wrap">
+      <h2 class="sec-title">Five games, each one trains a different skill</h2>
+      <p class="sec-lede">Rounds take a couple of minutes. Every round earns XP toward your streak and your mastery in that skill.</p>
+      <ul class="games">
+        <li><h3>LexiMatch Cards</h3><span class="skill">Vocabulary</span><p>Pair scripts with their meanings before your combo streak runs out. The round above is a small version.</p></li>
+        <li><h3>Ink &amp; Stroke Studio</h3><span class="skill">Writing</span><p>Draw characters on a canvas with your finger. Gemini Vision checks your strokes and tells you what to fix.</p></li>
+        <li><h3>Syntax Sprint Quiz</h3><span class="skill">Grammar</span><p>Quick rounds on particles, word order and sentence building.</p></li>
+        <li><h3>Echo Voice Arena</h3><span class="skill">Pronunciation</span><p>Hear a native-voiced prompt, say it back, and get feedback on how close you were.</p></li>
+        <li><h3>Story Café</h3><span class="skill">Conversation</span><p>Order coffee in Paris or tapas in Madrid. Pick your replies and the story follows them.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="languages" style="padding-top:24px">
+    <div class="wrap">
+      <h2 class="sec-title">Three languages, taught in context</h2>
+      <p class="sec-lede">Each language has its own stories, phrases and pronunciation guides, written for English speakers.</p>
+      <div class="places">
+        <figure class="place jp">
+          <img src="assets/img_story_japan.webp" alt="Illustration of a ramen stall at night under paper lanterns" width="900" height="672" loading="lazy">
+          <figcaption>
+            <h3>Japanese</h3>
+            <p class="phrase" lang="ja">ありがとう</p>
+            <p>a-ri-ga-tou, “thank you”</p>
+          </figcaption>
+        </figure>
+        <figure class="place es">
+          <img src="assets/img_story_spain.webp" alt="Illustration of a sunny plaza in Madrid with a clock tower and café" width="900" height="672" loading="lazy">
+          <figcaption>
+            <h3>Spanish</h3>
+            <p class="phrase" lang="es">Buenos días</p>
+            <p>BWEH-nos DEE-as, “good morning”</p>
+          </figcaption>
+        </figure>
+        <figure class="place fr">
+          <img src="assets/img_story_france.webp" alt="Illustration of a Paris café table with a croissant and coffee" width="900" height="672" loading="lazy">
+          <figcaption>
+            <h3>French</h3>
+            <p class="phrase" lang="fr">Je voudrais un café</p>
+            <p>zhuh voo-DREH uhn kah-FAY, “I’d like a coffee”</p>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="tutor" style="padding-top:24px">
+    <div class="wrap">
+      <div class="tutor">
+        <div>
+          <h2 class="sec-title">Practise speaking with a live AI tutor</h2>
+          <p class="sec-lede">The Gemini Live tutor listens as you speak and coaches you in real time, so you can practise out loud whenever you like.</p>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Speech coaching on your pronunciation as you talk</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 5-6"/></svg>XP, daily streaks and skill mastery, synced to your account</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>Save phrases you want to keep and review them later</li>
+          </ul>
+        </div>
+        <img src="assets/img_welcome_studio.webp" alt="Illustration of a study desk with an open notebook reading Hola, Bonjour and こんにちは" width="1000" height="558" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap install">
+      <div>
+        <h2 class="sec-title">Install in three steps</h2>
+        <p class="sec-lede">Polyglot Studio is installed from an APK file while it’s in early access.</p>
+        <ol class="steps">
+          <li><div><h3>Download the APK</h3><p>On your Android phone, open the latest release and tap the <strong>.apk</strong> file.</p></div></li>
+          <li><div><h3>Allow the install</h3><p>If Android asks, allow your browser to install unknown apps. You can turn this off again afterwards.</p></div></li>
+          <li><div><h3>Open and start playing</h3><p>Sign in with Google to sync your progress, or continue as a guest.</p></div></li>
+        </ol>
+        <a class="btn btn--primary" href="https://github.com/Jrabara101/polyglot-studio-android/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
+          Download for Android
+        </a>
+      </div>
+      <div class="qr">
+        <img src="assets/qr.svg" alt="QR code that downloads the Polyglot Studio APK" width="240" height="240">
+        <h3>On a computer?</h3>
+        <p>Scan with your phone’s camera to download the APK straight to your phone.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Polyglot Studio. Made for English speakers learning Japanese, Spanish and French.</span>
+    <a href="https://github.com/Jrabara101/polyglot-studio-android">Source on GitHub</a>
+  </div>
+</footer>
+<div class="stripe" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<script>
+(() => {
+  // Pairs taken from the app's own curated LexiMatch content.
+  const PAIRS = [
+    { id: "jp", word: "ありがとう", say: "a-ri-ga-tou", meaning: "Thank you", lang: "ja" },
+    { id: "es", word: "Buenos días", say: "BWEH-nos DEE-as", meaning: "Good morning", lang: "es" },
+    { id: "fr", word: "Bonjour", say: "bohn-ZHOOR", meaning: "Hello", lang: "fr" },
+  ];
+  const grid = document.getElementById("grid");
+  const status = document.getElementById("status");
+  const comboEl = document.getElementById("combo");
+  const again = document.getElementById("again");
+  const board = document.getElementById("board");
+  let picked = null, found = 0, combo = 0;
+
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  function setCombo(n) {
+    combo = n;
+    comboEl.textContent = "Combo ×" + n;
+    comboEl.classList.toggle("hot", n >= 2);
+  }
+
+  function deal() {
+    grid.innerHTML = "";
+    picked = null; found = 0; setCombo(0);
+    board.classList.remove("won");
+    again.hidden = true;
+    status.textContent = PAIRS.length + " pairs to find.";
+    const tiles = shuffle(PAIRS.flatMap(p => [
+      { pair: p, kind: "word" }, { pair: p, kind: "meaning" },
+    ]));
+    for (const t of tiles) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "tile" + (t.kind === "meaning" ? " tile--meaning" : "");
+      b.dataset.pair = t.pair.id;
+      b.dataset.kind = t.kind;
+      b.setAttribute("aria-pressed", "false");
+      if (t.kind === "word") { b.lang = t.pair.lang; b.textContent = t.pair.word; }
+      else b.textContent = t.pair.meaning;
+      b.addEventListener("click", () => choose(b, t.pair));
+      grid.appendChild(b);
+    }
+  }
+
+  function choose(b, pair) {
+    if (b.classList.contains("done")) return;
+    if (!picked) { picked = b; b.setAttribute("aria-pressed", "true"); return; }
+    if (picked === b) { b.setAttribute("aria-pressed", "false"); picked = null; return; }
+    if (picked.dataset.kind === b.dataset.kind) {
+      // Same kind: switch the selection rather than counting a miss.
+      picked.setAttribute("aria-pressed", "false");
+      picked = b; b.setAttribute("aria-pressed", "true"); return;
+    }
+    const first = picked; picked = null;
+    first.setAttribute("aria-pressed", "false");
+    if (first.dataset.pair === b.dataset.pair) {
+      for (const el of [first, b]) {
+        el.classList.add("done", pair.id);
+        el.setAttribute("aria-disabled", "true");
+      }
+      const wordTile = first.dataset.kind === "word" ? first : b;
+      const s = document.createElement("small"); s.textContent = pair.say; wordTile.appendChild(s);
+      found++; setCombo(combo + 1);
+      if (found === PAIRS.length) {
+        board.classList.add("won");
+        status.textContent = "Round cleared with a ×" + combo + " combo. That's one of five games in the app.";
+        again.hidden = false;
+      } else {
+        status.textContent = pair.word + " means “" + pair.meaning + "”. " + (PAIRS.length - found) + " to go.";
+      }
+    } else {
+      setCombo(0);
+      status.textContent = "Not a pair. Combo reset, try again.";
+      for (const el of [first, b]) { el.classList.remove("miss"); void el.offsetWidth; el.classList.add("miss"); }
+    }
+  }
+
+  again.addEventListener("click", deal);
+  deal();
+})();
+</script>
+</body>
+</html>

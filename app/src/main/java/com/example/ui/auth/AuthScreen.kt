@@ -3,6 +3,7 @@ package com.example.ui.auth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +59,7 @@ import androidx.credentials.CredentialManager
 import com.example.R
 import com.example.auth.attemptAutoSignIn
 import com.example.auth.onGoogleSignInClicked
-import com.example.auth.onGuestSignInClicked
+import com.example.auth.onCreateAccountClicked
 import com.example.data.model.TargetLanguage
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
@@ -81,6 +85,9 @@ fun AuthScreen(
     var isAutoChecking by remember { mutableStateOf(true) }
     var isSigningIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showCreateAccount by rememberSaveable { mutableStateOf(false) }
+    var createAccountError by remember { mutableStateOf<String?>(null) }
+    var legalDialog by rememberSaveable { mutableStateOf<LegalDoc?>(null) }
 
     LaunchedEffect(Unit) {
         attemptAutoSignIn(
@@ -251,28 +258,18 @@ fun AuthScreen(
             TactileButton(
                 onClick = {
                     errorMessage = null
-                    isSigningIn = true
-                    onGuestSignInClicked(
-                        onAuthSuccess = {
-                            isSigningIn = false
-                            onAuthSuccess()
-                        },
-                        onAuthError = { msg ->
-                            isSigningIn = false
-                            errorMessage = msg
-                        },
-                        scope = scope
-                    )
+                    createAccountError = null
+                    showCreateAccount = true
                 },
                 enabled = !isSigningIn && !isAutoChecking,
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("guest_sign_in_button")
+                    .testTag("create_account_button")
             ) {
                 Text(
-                    text = stringResource(R.string.continue_as_guest),
+                    text = stringResource(R.string.create_account),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -284,8 +281,95 @@ fun AuthScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(Modifier.height(16.dp))
+            // Black in light mode as designed; falls back to the regular text colour in dark
+            // mode, where pure black would be invisible on the dark background.
+            val legalLinkColor = if (palette.isDark) MaterialTheme.colorScheme.onBackground else Color.Black
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                LegalLink(
+                    text = "Terms and Conditions",
+                    color = legalLinkColor,
+                    testTag = "terms_link",
+                    onClick = { legalDialog = LegalDoc.TERMS }
+                )
+                Text(
+                    text = "  ·  ",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = legalLinkColor
+                )
+                LegalLink(
+                    text = "Privacy Policy",
+                    color = legalLinkColor,
+                    testTag = "privacy_link",
+                    onClick = { legalDialog = LegalDoc.PRIVACY }
+                )
+            }
         }
     }
+
+    if (showCreateAccount) {
+        CreateAccountDialog(
+            isSubmitting = isSigningIn,
+            errorMessage = createAccountError,
+            onDismiss = { showCreateAccount = false },
+            onSubmit = { username ->
+                createAccountError = null
+                isSigningIn = true
+                onCreateAccountClicked(
+                    username = username,
+                    onAuthSuccess = {
+                        isSigningIn = false
+                        showCreateAccount = false
+                        onAuthSuccess()
+                    },
+                    onAuthError = { msg ->
+                        isSigningIn = false
+                        createAccountError = msg
+                    },
+                    scope = scope
+                )
+            }
+        )
+    }
+
+    when (legalDialog) {
+        LegalDoc.TERMS -> LegalDialog(
+            title = "Terms and Conditions",
+            sections = TermsAndConditions,
+            onDismiss = { legalDialog = null }
+        )
+        LegalDoc.PRIVACY -> LegalDialog(
+            title = "Privacy Policy",
+            sections = PrivacyPolicy,
+            onDismiss = { legalDialog = null }
+        )
+        null -> Unit
+    }
+}
+
+private enum class LegalDoc { TERMS, PRIVACY }
+
+@Composable
+private fun LegalLink(
+    text: String,
+    color: Color,
+    testTag: String,
+    onClick: () -> Unit
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.Underline),
+        color = color,
+        modifier = Modifier
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 2.dp)
+            .testTag(testTag)
+    )
 }
 
 @Composable

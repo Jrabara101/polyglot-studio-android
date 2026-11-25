@@ -67,7 +67,22 @@ data class PhonemeGuideItem(
 
 object CuratedContent {
 
+    /** Card pairs from the bundled lexicon; falls back to the built-in list if it isn't loaded. */
     fun cardPairs(language: TargetLanguage, difficulty: DifficultyLevel): List<CardPairItem> {
+        val fromLexicon = Lexicon.entries(language, difficulty).map { entry ->
+            val showReading = entry.reading.isNotBlank() && entry.reading != entry.text
+            CardPairItem(
+                id = entry.id,
+                targetText = entry.text,
+                phonetic = if (showReading) "${entry.reading} · ${entry.romanization}" else entry.romanization,
+                englishMeaning = entry.english,
+                category = entry.category
+            )
+        }
+        return fromLexicon.ifEmpty { builtInCardPairs(language, difficulty) }
+    }
+
+    private fun builtInCardPairs(language: TargetLanguage, difficulty: DifficultyLevel): List<CardPairItem> {
         val all = when (language) {
             TargetLanguage.JAPANESE -> when (difficulty) {
                 DifficultyLevel.BEGINNER -> listOf(
@@ -156,46 +171,62 @@ object CuratedContent {
             TargetLanguage.JAPANESE -> when (difficulty) {
                 DifficultyLevel.BEGINNER -> listOf(
                     CalligraphyPromptItem("jp_c1", "あ", "a", "Hiragana 'a'", "3 strokes: horizontal, curve down, sweeping loop"),
+                    CalligraphyPromptItem("jp_c10", "い", "i", "Hiragana 'i'", "2 strokes: left curve with a small hook, then a short right stroke"),
                     CalligraphyPromptItem("jp_c2", "水", "mizu", "Water", "4 strokes: center hook first, left wing, right two strokes"),
                     CalligraphyPromptItem("jp_c3", "山", "yama", "Mountain", "3 strokes: center vertical, left-to-bottom, right vertical"),
-                    CalligraphyPromptItem("jp_c4", "日", "hi / nichi", "Sun / Day", "4 strokes: left vertical, top-right corner, middle bar, bottom")
+                    CalligraphyPromptItem("jp_c4", "日", "hi / nichi", "Sun / Day", "4 strokes: left vertical, top-right corner, middle bar, bottom"),
+                    CalligraphyPromptItem("jp_c11", "人", "hito", "Person", "2 strokes: left sweep first, then right sweep leaning on it")
                 )
                 DifficultyLevel.INTERMEDIATE -> listOf(
                     CalligraphyPromptItem("jp_c5", "花", "hana", "Flower", "7 strokes: grass radical on top, person+change below"),
                     CalligraphyPromptItem("jp_c6", "空", "sora", "Sky / Empty", "8 strokes: cave roof top, work radical centered below"),
-                    CalligraphyPromptItem("jp_c7", "心", "kokoro", "Heart / Mind", "4 strokes: left dot, sweeping curve with hook, two top dots")
+                    CalligraphyPromptItem("jp_c7", "心", "kokoro", "Heart / Mind", "4 strokes: left dot, sweeping curve with hook, two top dots"),
+                    CalligraphyPromptItem("jp_c12", "本", "hon", "Book / Origin", "5 strokes: long horizontal, vertical, left sweep, right sweep, short bar low on the vertical"),
+                    CalligraphyPromptItem("jp_c13", "雨", "ame", "Rain", "8 strokes: top bar, left side, top-right corner with hook, center vertical, then four dots")
                 )
                 DifficultyLevel.ADVANCED -> listOf(
                     CalligraphyPromptItem("jp_c8", "夢", "yume", "Dream", "13 strokes: balanced top-to-bottom symmetry"),
-                    CalligraphyPromptItem("jp_c9", "響", "hibiki", "Echo / Resonance", "20 strokes: village+sound over heart/tone")
+                    CalligraphyPromptItem("jp_c9", "響", "hibiki", "Echo / Resonance", "20 strokes: village+sound over heart/tone"),
+                    CalligraphyPromptItem("jp_c14", "書", "sho / kaku", "To write / Book", "10 strokes: brush radical on top, sun (日) at the bottom"),
+                    CalligraphyPromptItem("jp_c15", "愛", "ai", "Love", "13 strokes: claw on top, crown, heart in the middle, walking legs at the bottom")
                 )
             }
             TargetLanguage.SPANISH -> when (difficulty) {
                 DifficultyLevel.BEGINNER -> listOf(
                     CalligraphyPromptItem("es_c1", "ñ", "eñe", "Palatal nasal 'ny'", "Draw lowercase 'n' topped with a smooth wavy tilde (~)"),
                     CalligraphyPromptItem("es_c2", "¿?", "interrogación", "Spanish question marks", "Open upside-down question mark first, closing mark at end"),
-                    CalligraphyPromptItem("es_c3", "á", "a con tilde", "Stressed 'a'", "Lowercase 'a' with a crisp upward-right acute accent")
+                    CalligraphyPromptItem("es_c3", "á", "a con tilde", "Stressed 'a'", "Lowercase 'a' with a crisp upward-right acute accent"),
+                    CalligraphyPromptItem("es_c7", "ü", "u con diéresis", "'u' that is pronounced (pingüino)", "Lowercase 'u' with two dots side by side above it")
                 )
                 DifficultyLevel.INTERMEDIATE -> listOf(
                     CalligraphyPromptItem("es_c4", "Mañana", "mah-NYAH-nah", "Tomorrow", "Keep letters connected cleanly and place the tilde over the first n"),
-                    CalligraphyPromptItem("es_c5", "¡Hola!", "OH-lah", "Hello!", "Start with inverted exclamation mark ¡ and finish with !")
+                    CalligraphyPromptItem("es_c5", "¡Hola!", "OH-lah", "Hello!", "Start with inverted exclamation mark ¡ and finish with !"),
+                    CalligraphyPromptItem("es_c8", "Canción", "kahn-THYOHN", "Song", "Even letter heights, acute accent on the ó"),
+                    CalligraphyPromptItem("es_c9", "Pingüino", "peen-GWEE-noh", "Penguin", "Two dots (diéresis) over the ü, dot over each i")
                 )
                 DifficultyLevel.ADVANCED -> listOf(
-                    CalligraphyPromptItem("es_c6", "Corazón", "ko-rah-SON", "Heart", "Clean cursive/print flow with acute accent on ó")
+                    CalligraphyPromptItem("es_c6", "Corazón", "koh-rah-THOHN", "Heart", "Clean cursive/print flow with acute accent on ó"),
+                    CalligraphyPromptItem("es_c10", "Murciélago", "moor-THYEH-lah-goh", "Bat (animal)", "Long word: keep spacing even, acute accent on é"),
+                    CalligraphyPromptItem("es_c11", "Añoranza", "ah-nyoh-RAHN-thah", "Deep longing", "Tilde over the ñ, steady baseline across the word")
                 )
             }
             TargetLanguage.FRENCH -> when (difficulty) {
                 DifficultyLevel.BEGINNER -> listOf(
                     CalligraphyPromptItem("fr_c1", "ç", "c cédille", "Soft 's' C-cedilla", "Draw 'c' with a tiny hook tail hanging beneath the base"),
                     CalligraphyPromptItem("fr_c2", "é", "e accent aigu", "Closed 'ay' vowel", "Draw 'e' with an upward-right acute stroke above"),
-                    CalligraphyPromptItem("fr_c3", "à", "a accent grave", "Preposition 'to/at'", "Draw 'a' with a downward-right grave stroke above")
+                    CalligraphyPromptItem("fr_c3", "à", "a accent grave", "Preposition 'to/at'", "Draw 'a' with a downward-right grave stroke above"),
+                    CalligraphyPromptItem("fr_c7", "ê", "e accent circonflexe", "Open 'eh' vowel (fête)", "Draw 'e' with a small pointed hat (^) above")
                 )
                 DifficultyLevel.INTERMEDIATE -> listOf(
                     CalligraphyPromptItem("fr_c4", "Café", "kah-FAY", "Coffee / Café", "Balanced proportions ending with a crisp acute accent on é"),
-                    CalligraphyPromptItem("fr_c5", "Crème", "krem", "Cream", "Graceful grave accent sloping down-right over è")
+                    CalligraphyPromptItem("fr_c5", "Crème", "krem", "Cream", "Graceful grave accent sloping down-right over è"),
+                    CalligraphyPromptItem("fr_c8", "Noël", "noh-EL", "Christmas", "Two dots (tréma) over the ë"),
+                    CalligraphyPromptItem("fr_c9", "Hôtel", "oh-TEL", "Hotel", "Circumflex hat over the ô, tall h and l")
                 )
                 DifficultyLevel.ADVANCED -> listOf(
-                    CalligraphyPromptItem("fr_c6", "Français", "frahn-SEH", "French", "Clear cedilla hook beneath ç in the middle of the word")
+                    CalligraphyPromptItem("fr_c6", "Français", "frahn-SEH", "French", "Clear cedilla hook beneath ç in the middle of the word"),
+                    CalligraphyPromptItem("fr_c10", "Cœur", "kur", "Heart", "Join o and e into the œ ligature"),
+                    CalligraphyPromptItem("fr_c11", "Garçon", "gar-SOHN", "Boy / Waiter", "Cedilla under the ç, round o and n")
                 )
             }
         }

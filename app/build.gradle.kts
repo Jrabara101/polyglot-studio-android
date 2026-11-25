@@ -142,10 +142,17 @@ dependencies {
   // "ksp"(libs.moshi.kotlin.codegen)
 }
 
+val excludeEmulatorTests = providers.gradleProperty("excludeEmulatorTests")
+  .map { it.toBoolean() }
+  .getOrElse(false)
+
 tasks.withType<Test> {
   failFast = true
   timeout.set(Duration.ofMinutes(2))
   testLogging {
     events("passed", "failed", "skipped")
+  }
+  if (excludeEmulatorTests) {
+    exclude("**/ProgressRepositoryRuleTest*")
   }
 }

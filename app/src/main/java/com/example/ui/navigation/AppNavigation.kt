@@ -43,7 +43,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.R
+import com.example.audio.AssetClipPlayer
+import com.example.audio.DeviceSpeech
 import com.example.audio.PcmAudioPlayer
+import com.example.auth.AccountSetupGate
 import com.example.auth.authStateFlow
 import com.example.auth.signOut
 import com.example.data.ai.FirebaseAiRepository
@@ -107,6 +110,8 @@ private class StudioViewModelFactory(
             progressRepository = ProgressRepository(firestore),
             aiRepository = aiRepository,
             audioPlayer = PcmAudioPlayer(),
+            clipPlayer = AssetClipPlayer(context),
+            deviceSpeech = DeviceSpeech(context),
             currentUserId = userId
         ) as T
     }
@@ -117,8 +122,10 @@ fun PolyglotAppRoot() {
     val auth = remember { Firebase.auth }
     val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
 
+    val accountSetupPending by AccountSetupGate.isPending.collectAsStateWithLifecycle()
+
     val user = currentUser
-    if (user == null) {
+    if (user == null || accountSetupPending) {
         PolyglotStudioTheme {
             AuthScreen(onAuthSuccess = {
                 // Auth state flow transitions automatically upon sign-in
@@ -315,7 +322,7 @@ private fun AuthenticatedStudioShell(userId: String) {
                             CalligraphyGameScreen(
                                 language = selectedLanguage,
                                 difficulty = selectedDifficulty,
-                                aiRepository = aiRepository,
+                                onEvaluate = aiRepository::evaluateCalligraphy,
                                 speakingKey = speakingKey,
                                 onSpeak = studioViewModel::speakText,
                                 onCompleteSession = studioViewModel::recordCompletion,

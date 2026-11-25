@@ -34,6 +34,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -133,7 +135,9 @@ fun TactileButton(
     val effectiveBg = if (enabled) containerColor else containerColor.copy(alpha = 0.45f)
     val effectiveContent = if (enabled) contentColor else contentColor.copy(alpha = 0.7f)
 
-    Box(modifier = modifier.padding(bottom = shadowOffset)) {
+    // Merge the inner clickable's semantics (click action, enabled state) into this outer node,
+    // so a testTag passed in `modifier` points at the real button.
+    Box(modifier = modifier.semantics(mergeDescendants = true) { if (!enabled) disabled() }.padding(bottom = shadowOffset)) {
         Box(
             modifier = Modifier
                 .matchParentSize()

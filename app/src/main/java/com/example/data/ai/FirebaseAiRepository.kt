@@ -31,12 +31,49 @@ import java.util.Collections
 private const val TAG = "FirebaseAiRepository"
 private const val AI_TIMEOUT_MS = 60_000L
 
+/** Each grading model gets this long before the next one is tried. */
+private const val GRADING_TIMEOUT_MS = 20_000L
+
+/** Fast model first; the larger model is a backup (it was overloaded during QA). */
+private val GRADING_MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.8-flash")
+
+/** A drawing passes at or above this score. The app decides, not the model. */
+const val CALLIGRAPHY_PASS_SCORE = 65
+
 data class CalligraphyEvaluation(
     val score: Int,
     val isPass: Boolean,
     val strokeFeedback: String,
     val improvementTip: String
 )
+
+/** Everything the grader needs about one drawing. */
+data class CalligraphyRequest(
+    val bitmap: Bitmap,
+    val targetChar: String,
+    val reading: String,
+    val strokeHint: String,
+    /** Strokes in the order drawn, e.g. "1. line from (30,40) to (70,40), going right". */
+    val strokeDescription: String,
+    val language: TargetLanguage
+)
+
+class GradingUnavailableException(cause: Throwable?) : IllegalStateException(
+    "Grading is busy right now. Please try again in a moment, or tap Skip.", cause
+)
+
+/** Parses the model's JSON. Throws if the score is missing so the next model can be tried. */
+internal fun parseCalligraphyEvaluation(raw: String): CalligraphyEvaluation {
+    val json = JSONObject(raw)
+    require(json.has("score")) { "Grading response had no score" }
+    val score = json.getInt("score").coerceIn(0, 100)
+    return CalligraphyEvaluation(
+        score = score,
+        isPass = score >= CALLIGRAPHY_PASS_SCORE,
+        strokeFeedback = json.optString("strokeFeedback").ifBlank { "Good effort on the main strokes." },
+        improvementTip = json.optString("improvementTip").ifBlank { "Keep proportions balanced inside the square." }
+    )
+}
 
 data class VoiceEvaluation(
     val transcript: String,
@@ -94,22 +131,23 @@ class FirebaseAiRepository {
         )
     }
 
-    private val calligraphyModel by lazy {
+    private val calligraphyModels by lazy {
         val evalSchema = Schema.obj(
             properties = mapOf(
                 "score" to Schema.integer(description = "Accuracy score 0 to 100"),
-                "isPass" to Schema.boolean(description = "True if recognizable and score >= 65"),
-                "strokeFeedback" to Schema.string(description = "Specific observation of proportions and strokes"),
+                "strokeFeedback" to Schema.string(description = "Specific observation of shape, proportions and accents"),
                 "improvementTip" to Schema.string(description = "Actionable next-attempt tip")
             )
         )
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.8-flash",
-            generationConfig = generationConfig {
-                responseMimeType = "application/json"
-                responseSchema = evalSchema
-            }
-        )
+        GRADING_MODELS.map { name ->
+            name to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+                modelName = name,
+                generationConfig = generationConfig {
+                    responseMimeType = "application/json"
+                    responseSchema = evalSchema
+                }
+            )
+        }
     }
 
     private val voiceEvalModel by lazy {
@@ -209,31 +247,44 @@ class FirebaseAiRepository {
         }
     }
 
-    suspend fun evaluateCalligraphy(
-        bitmap: Bitmap,
-        targetChar: String,
-        reading: String,
-        language: TargetLanguage
-    ): CalligraphyEvaluation = runWithTimeout("Calligraphy evaluation") {
-        val response = calligraphyModel.generateContent(
-            content {
-                image(bitmap)
-                text(
-                    "You are a gentle, expert ${language.displayName} writing tutor. " +
-                        "The learner attempted to write '$targetChar' ($reading) on a touch canvas. " +
-                        "Evaluate legibility, proportions, accents/diacritics or stroke structure. " +
-                        "If the canvas is nearly blank, score below 20 and explain kindly."
-                )
+    /**
+     * Grades a drawing. Tries each model in [GRADING_MODELS] with a [GRADING_TIMEOUT_MS] limit and
+     * throws [GradingUnavailableException] (with a learner-friendly message) if none answers.
+     */
+    suspend fun evaluateCalligraphy(request: CalligraphyRequest): CalligraphyEvaluation {
+        val prompt = content {
+            image(request.bitmap)
+            text(
+                "You are a gentle, expert ${request.language.displayName} writing tutor. " +
+                    "The learner attempted to write '${request.targetChar}' (${request.reading}) on a touch canvas. " +
+                    "Expected strokes: ${request.strokeHint}. " +
+                    "Strokes in the order the learner drew them (x,y from 0 to 100, origin top-left): " +
+                    "${request.strokeDescription}. " +
+                    "Evaluate legibility, proportions, stroke shapes and accents/diacritics. " +
+                    "Do NOT comment on stroke order or stroke count; the app checks those separately. " +
+                    "Score 65 or more only if the character is clearly recognizable. " +
+                    "If the canvas is nearly blank, score below 20 and explain kindly."
+            )
+        }
+        var lastError: Exception? = null
+        for ((name, model) in calligraphyModels) {
+            try {
+                return withTimeout(GRADING_TIMEOUT_MS) {
+                    val raw = model.generateContent(prompt).text
+                        ?: throw IllegalStateException("Empty calligraphy evaluation.")
+                    parseCalligraphyEvaluation(raw)
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.w(TAG, "Calligraphy grading with $name timed out", e)
+                lastError = e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Calligraphy grading with $name failed", e)
+                lastError = e
             }
-        )
-        val raw = response.text ?: throw IllegalStateException("Empty calligraphy evaluation.")
-        val json = JSONObject(raw)
-        CalligraphyEvaluation(
-            score = json.optInt("score", 70).coerceIn(0, 100),
-            isPass = json.optBoolean("isPass", false),
-            strokeFeedback = json.optString("strokeFeedback", "Good effort on the main strokes."),
-            improvementTip = json.optString("improvementTip", "Keep proportions balanced inside the square.")
-        )
+        }
+        throw GradingUnavailableException(lastError)
     }
 
     suspend fun generateQuizQuestions(

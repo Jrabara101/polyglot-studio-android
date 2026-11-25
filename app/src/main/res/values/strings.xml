@@ -2,7 +2,7 @@
     <string name="app_name">Polyglot Studio</string>
     <string name="auth_tagline">Master Japanese, Spanish &amp; French through five tactile games and live AI speech coaching.</string>
     <string name="sign_in_with_google">Continue with Google</string>
-    <string name="continue_as_guest">Continue as guest</string>
+    <string name="create_account">Create Account</string>
     <string name="nav_studio">Studio</string>
     <string name="nav_speech">Speech</string>
     <string name="nav_tutor">AI Tutor</string>

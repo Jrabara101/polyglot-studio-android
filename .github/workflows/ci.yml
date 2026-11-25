@@ -1,0 +1,117 @@
+name: Polyglot Studio CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-tests-and-build:
+    name: Android Unit & Compose Tests + Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept Android SDK licenses
+        run: |
+          if [ -n "${ANDROID_HOME:-}" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          fi
+
+      - name: Ensure debug keystore exists
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run unit and Robolectric Compose UI tests
+        run: ./gradlew testDebugUnitTest -PexcludeEmulatorTests=true --stacktrace
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+
+  website-checks:
+    name: Landing Page Integrity Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify docs/index.html assets, anchors, and metadata
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, sys
+
+          docs = pathlib.Path("docs")
+          html_path = docs / "index.html"
+          assert html_path.is_file(), "Missing docs/index.html"
+          html = html_path.read_text(encoding="utf-8")
+
+          errors = []
+          for tag in ("<title>", 'name="description"', 'name="viewport"', "<h1"):
+              if tag not in html:
+                  errors.append(f"Missing required markup: {tag}")
+
+          ids = set(re.findall(r'\bid="([^"]+)"', html))
+          for href in re.findall(r'\bhref="([^"]+)"', html):
+              if href.startswith("#"):
+                  target = href[1:]
+                  if target and target not in ids:
+                      errors.append(f"Broken internal anchor: {href}")
+              elif not href.startswith(("http://", "https://", "mailto:")):
+                  asset = docs / href
+                  if not asset.is_file():
+                      errors.append(f"Missing local href asset: {href}")
+
+          for src in re.findall(r'\bsrc="([^"]+)"', html):
+              if not src.startswith(("http://", "https://", "data:")):
+                  asset = docs / src
+                  if not asset.is_file():
+                      errors.append(f"Missing local src asset: {src}")
+
+          if errors:
+              print("Website check failed:")
+              for e in errors:
+                  print(" -", e)
+              sys.exit(1)
+          print("Website integrity checks passed.")
+          PY

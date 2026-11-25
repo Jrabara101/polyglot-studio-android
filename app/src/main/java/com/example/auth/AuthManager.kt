@@ -18,11 +18,15 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
+import com.google.firebase.auth.userProfileChangeRequest
+import java.util.Calendar
+import java.util.TimeZone
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -142,30 +146,90 @@ fun onGoogleSignInClicked(
     }
 }
 
+/** Minimum age allowed to use the app. */
+const val MINIMUM_AGE = 13
+
+private val USERNAME_PATTERN = Regex("^[A-Za-z0-9_.]{3,20}$")
+
+/** Returns an error message for an invalid username, or null when it is valid. */
+fun validateUsername(raw: String): String? {
+    val name = raw.trim()
+    return when {
+        name.length < 3 -> "Username must be at least 3 characters."
+        name.length > 20 -> "Username must be 20 characters or fewer."
+        !USERNAME_PATTERN.matches(name) -> "Use only letters, numbers, dots, and underscores."
+        else -> null
+    }
+}
+
 /**
- * Signs in as an anonymous Firebase guest. Requires the "Anonymous" provider to be enabled in
- * Firebase Console → Authentication → Sign-in method. Free on the Spark plan; needs no SHA-1
- * fingerprint or Google account. The guest can later be upgraded with linkWithCredential().
+ * Age in whole years for a birthday given as UTC-midnight millis (what the Material3 DatePicker
+ * returns), measured against today's local date. Uses Calendar because minSdk is 24 (no java.time).
  */
-fun onGuestSignInClicked(
+fun ageFromBirthdayMillis(birthdayUtcMillis: Long, now: Calendar = Calendar.getInstance()): Int {
+    val birth = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = birthdayUtcMillis
+    }
+    var age = now.get(Calendar.YEAR) - birth.get(Calendar.YEAR)
+    val nowMonth = now.get(Calendar.MONTH)
+    val birthMonth = birth.get(Calendar.MONTH)
+    if (nowMonth < birthMonth ||
+        (nowMonth == birthMonth && now.get(Calendar.DAY_OF_MONTH) < birth.get(Calendar.DAY_OF_MONTH))
+    ) {
+        age--
+    }
+    return age
+}
+
+/**
+ * True while a new account is being created. Anonymous sign-in flips the auth state before the
+ * username is attached, so the app root keeps showing the auth screen until this clears —
+ * otherwise the profile would be created with the default "Polyglot Learner" name.
+ */
+object AccountSetupGate {
+    val isPending = MutableStateFlow(false)
+}
+
+/**
+ * Creates an account backed by an anonymous Firebase user and attaches [username] as its display
+ * name. The birthday is checked on-device only and is never stored. Requires the "Anonymous"
+ * provider in Firebase Console → Authentication → Sign-in method. The account can later be
+ * upgraded to Google (or another provider) with linkWithCredential() without losing progress.
+ */
+fun onCreateAccountClicked(
+    username: String,
     onAuthSuccess: () -> Unit,
     onAuthError: (String) -> Unit,
     scope: CoroutineScope
 ) {
     scope.launch {
+        AccountSetupGate.isPending.value = true
         try {
-            Firebase.auth.signInAnonymously().await()
+            val user = Firebase.auth.signInAnonymously().await().user
+                ?: error("Account creation returned no user.")
+            try {
+                user.updateProfile(
+                    userProfileChangeRequest { displayName = username.trim() }
+                ).await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The account exists; it just falls back to the default name.
+                Log.w(TAG, "Account created but saving the username failed", e)
+            }
             onAuthSuccess()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Guest sign-in failed", e)
+            Log.e(TAG, "Account creation failed", e)
             val msg = e.localizedMessage.orEmpty()
             onAuthError(
                 if ("ADMIN_ONLY_OPERATION" in msg || "OPERATION_NOT_ALLOWED" in msg || "restricted" in msg)
-                    "Guest mode is not enabled. Turn on the Anonymous provider in Firebase Console → Authentication → Sign-in method."
-                else msg.ifBlank { "Guest sign-in failed. Please try again." }
+                    "Account creation is not enabled. Turn on the Anonymous provider in Firebase Console → Authentication → Sign-in method."
+                else msg.ifBlank { "Could not create your account. Please try again." }
             )
+        } finally {
+            AccountSetupGate.isPending.value = false
         }
     }
 }
