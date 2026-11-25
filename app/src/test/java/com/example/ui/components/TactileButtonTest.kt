@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -144,6 +146,46 @@ class TactileButtonTest {
         assertTrue(
             "Compact button ($compactOuterW) should stay narrower than half row ($rowW)",
             compactOuterW < rowW / 2
+        )
+    }
+
+    @Test
+    fun compact_padding_tactile_button_has_no_vertical_shadow_bleed() {
+        var outerHeightPx = 0
+        var innerRowContentHeightPx = 0
+        var shadowPx = 0
+        var verticalPaddingPx = 0
+
+        compose.setContent {
+            val density = LocalDensity.current
+            shadowPx = with(density) { 3.dp.roundToPx() }
+            verticalPaddingPx = with(density) { 16.dp.roundToPx() } // 8.dp top + 8.dp bottom
+
+            PolyglotStudioTheme(activeLanguage = TargetLanguage.JAPANESE, darkTheme = false) {
+                TactileButton(
+                    onClick = {},
+                    shadowOffset = 3.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .testTag("sign_out_btn")
+                        .onGloballyPositioned { outerHeightPx = it.size.height }
+                ) {
+                    Text(
+                        "Sign Out",
+                        modifier = Modifier.onGloballyPositioned { coords ->
+                            innerRowContentHeightPx = coords.parentLayoutCoordinates?.size?.height ?: 0
+                        }
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        val expectedInnerHeight = outerHeightPx - shadowPx - verticalPaddingPx
+        assertTrue(
+            "Surface height must fill the 48dp touch target without vertical shadow bleed " +
+                "(expected inner=$expectedInnerHeight, actual=$innerRowContentHeightPx, outer=$outerHeightPx)",
+            abs(expectedInnerHeight - innerRowContentHeightPx) <= 2
         )
     }
 }

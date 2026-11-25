@@ -364,7 +364,6 @@ private fun AuthenticatedStudioShell(userId: String) {
                             StoryGameScreen(
                                 language = selectedLanguage,
                                 difficulty = selectedDifficulty,
-                                aiRepository = aiRepository,
                                 speakingKey = speakingKey,
                                 onSpeak = studioViewModel::speakText,
                                 onSavePhrase = studioViewModel::savePhrase,

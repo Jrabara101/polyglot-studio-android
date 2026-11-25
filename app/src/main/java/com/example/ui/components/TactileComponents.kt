@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -157,7 +158,7 @@ fun TactileButton(
             border = BorderStroke(1.5.dp, palette.inkBorder),
             modifier = Modifier
                 .offset(y = shift)
-                .minimumInteractiveComponentSize()
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(shape)
                 .clickable(
                     enabled = enabled,
