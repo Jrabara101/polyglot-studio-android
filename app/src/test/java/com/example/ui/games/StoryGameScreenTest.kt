@@ -64,7 +64,7 @@ class StoryGameScreenTest {
                     difficulty = DifficultyLevel.BEGINNER,
                     speakingKey = null,
                     onSpeak = { _, _, _, _ -> },
-                    onSavePhrase = { _, _, _, _, _ -> },
+                    onSavePhrase = { _, _, _, _, _ -> Result.success("ok") },
                     onCompleteSession = { type, _, _, _, _, _, _ ->
                         savedTypes += type
                     },
@@ -119,7 +119,7 @@ class StoryGameScreenTest {
                     difficulty = DifficultyLevel.BEGINNER,
                     speakingKey = null,
                     onSpeak = { _, _, _, _ -> },
-                    onSavePhrase = { _, _, _, _, _ -> },
+                    onSavePhrase = { _, _, _, _, _ -> Result.success("ok") },
                     onCompleteSession = { _, _, _, _, _, _, _ -> },
                     onBack = {}
                 )
@@ -168,7 +168,7 @@ class StoryGameScreenTest {
                     difficulty = difficulty,
                     speakingKey = null,
                     onSpeak = { _, _, _, _ -> },
-                    onSavePhrase = { _, _, _, _, _ -> },
+                    onSavePhrase = { _, _, _, _, _ -> Result.success("ok") },
                     onCompleteSession = { _, _, _, _, _, _, _ -> },
                     onBack = {}
                 )
@@ -210,6 +210,7 @@ class StoryGameScreenTest {
                     },
                     onSavePhrase = { _, phrase, phonetic, english, _ ->
                         savedPhrase = Triple(phrase, phonetic, english)
+                        Result.success("ok")
                     },
                     onCompleteSession = { _, _, _, _, _, _, _ -> },
                     onBack = {}
@@ -244,7 +245,7 @@ class StoryGameScreenTest {
                     difficulty = DifficultyLevel.BEGINNER,
                     speakingKey = null,
                     onSpeak = { _, _, _, _ -> },
-                    onSavePhrase = { _, _, _, _, _ -> },
+                    onSavePhrase = { _, _, _, _, _ -> Result.success("ok") },
                     onCompleteSession = { type, _, _, _, _, _, _ ->
                         saveFailure?.let { throw it }
                         saved += type
@@ -284,7 +285,7 @@ class StoryGameScreenTest {
                         difficulty = DifficultyLevel.BEGINNER,
                         speakingKey = null,
                         onSpeak = { _, _, _, _ -> },
-                        onSavePhrase = { _, _, _, _, _ -> },
+                        onSavePhrase = { _, _, _, _, _ -> Result.success("ok") },
                         onCompleteSession = { _, _, _, _, _, _, _ ->
                             throw IOException("Device offline")
                         },

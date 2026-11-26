@@ -18,6 +18,7 @@ import com.example.data.model.SavedPhrase
 import com.example.data.model.TargetLanguage
 import com.example.data.model.UserProfile
 import com.example.data.repository.ProgressRepository
+import com.example.ui.tutor.LiveSessionController
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -56,6 +57,8 @@ class StudioViewModel(
     val ttsError: StateFlow<String?> = _ttsError.asStateFlow()
 
     private var ttsJob: Job? = null
+
+    val liveSessionController = LiveSessionController()
 
     init {
         viewModelScope.launch {
@@ -210,27 +213,27 @@ class StudioViewModel(
         _ttsError.value = null
     }
 
-    fun savePhrase(
+    suspend fun savePhrase(
         language: TargetLanguage,
         targetText: String,
         phonetic: String,
         englishMeaning: String,
         sourceGame: String
-    ) {
-        viewModelScope.launch {
-            try {
-                progressRepository.savePhrase(
-                    language = language,
-                    targetText = targetText,
-                    phonetic = phonetic,
-                    englishMeaning = englishMeaning,
-                    sourceGame = sourceGame
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to save phrase", e)
-            }
+    ): Result<String> {
+        return try {
+            val id = progressRepository.savePhrase(
+                language = language,
+                targetText = targetText,
+                phonetic = phonetic,
+                englishMeaning = englishMeaning,
+                sourceGame = sourceGame
+            )
+            Result.success(id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save phrase", e)
+            Result.failure(e)
         }
     }
 
@@ -279,6 +282,7 @@ class StudioViewModel(
         ttsJob?.cancel()
         stopAllAudio()
         deviceSpeech.shutdown()
+        liveSessionController.shutdown()
     }
 
     private fun stopAllAudio() {

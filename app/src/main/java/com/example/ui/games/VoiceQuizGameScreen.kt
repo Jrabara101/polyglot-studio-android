@@ -94,7 +94,7 @@ fun VoiceQuizGameScreen(
     aiRepository: FirebaseAiRepository,
     speakingKey: String?,
     onSpeak: (key: String, text: String, language: TargetLanguage, slow: Boolean) -> Unit,
-    onSavePhrase: (TargetLanguage, String, String, String, String) -> Unit,
+    onSavePhrase: suspend (TargetLanguage, String, String, String, String) -> Result<String>,
     onCompleteSession: suspend (GameType, TargetLanguage, DifficultyLevel, Int, Int, Int, String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -118,17 +118,21 @@ fun VoiceQuizGameScreen(
     }
     var permissionDeniedNote by remember { mutableStateOf(false) }
 
+    var roundKey by remember(language, difficulty) { mutableIntStateOf(0) }
+    var errorText by remember(roundKey, language, difficulty) { mutableStateOf<String?>(null) }
+
     val micPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasMicPermission = granted
         permissionDeniedNote = !granted
         if (granted) {
-            recorder.start(scope)
+            if (!recorder.start(scope)) {
+                errorText = "Microphone unavailable right now. Close other apps using the mic and try again."
+            }
         }
     }
 
-    var roundKey by remember(language, difficulty) { mutableIntStateOf(0) }
     val challenges = remember(language, difficulty, roundKey) {
         CuratedContent.voiceChallenges(language, difficulty)
     }
@@ -139,7 +143,6 @@ fun VoiceQuizGameScreen(
         mutableStateOf<VoiceEvaluation?>(null)
     }
     var isEvaluating by remember(roundKey, language, difficulty) { mutableStateOf(false) }
-    var errorText by remember(roundKey, language, difficulty) { mutableStateOf<String?>(null) }
     var savedThisPrompt by remember(roundKey, language, difficulty, currentIndex) { mutableStateOf(false) }
     var startTimeMs by remember(roundKey, language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
     var saveState by remember(roundKey, language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
@@ -266,14 +269,20 @@ fun VoiceQuizGameScreen(
                                 )
                                 IconButton(
                                     onClick = {
-                                        onSavePhrase(
-                                            language,
-                                            currentChallenge.targetPhrase,
-                                            currentChallenge.phonetic,
-                                            currentChallenge.englishMeaning,
-                                            GameType.VOICE.code
-                                        )
-                                        savedThisPrompt = true
+                                        errorText = null
+                                        scope.launch {
+                                            onSavePhrase(
+                                                language,
+                                                currentChallenge.targetPhrase,
+                                                currentChallenge.phonetic,
+                                                currentChallenge.englishMeaning,
+                                                GameType.VOICE.code
+                                            ).onSuccess {
+                                                savedThisPrompt = true
+                                            }.onFailure { err ->
+                                                errorText = err.localizedMessage ?: "Couldn't save phrase."
+                                            }
+                                        }
                                     },
                                     modifier = Modifier
                                         .minimumInteractiveComponentSize()
@@ -477,7 +486,9 @@ fun VoiceQuizGameScreen(
                                             }
                                         }
                                     } else {
-                                        recorder.start(scope)
+                                        if (!recorder.start(scope)) {
+                                            errorText = "Microphone unavailable right now. Close other apps using the mic and try again."
+                                        }
                                     }
                                 },
                                 enabled = !isEvaluating,

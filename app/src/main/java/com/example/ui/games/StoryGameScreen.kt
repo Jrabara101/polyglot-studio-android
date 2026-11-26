@@ -93,7 +93,7 @@ fun StoryGameScreen(
     difficulty: DifficultyLevel,
     speakingKey: String?,
     onSpeak: (key: String, text: String, language: TargetLanguage, slow: Boolean) -> Unit,
-    onSavePhrase: (TargetLanguage, String, String, String, String) -> Unit,
+    onSavePhrase: suspend (TargetLanguage, String, String, String, String) -> Result<String>,
     onCompleteSession: suspend (GameType, TargetLanguage, DifficultyLevel, Int, Int, Int, String) -> Unit,
     onBack: () -> Unit,
     storiesOverride: List<StoryDefinition>? = null
@@ -562,14 +562,17 @@ fun StoryGameScreen(
                                         }
                                         IconButton(
                                             onClick = {
-                                                onSavePhrase(
-                                                    language,
-                                                    turn.text,
-                                                    turn.phonetic,
-                                                    turn.english,
-                                                    GameType.STORY.code
-                                                )
-                                                savedIndices = savedIndices + index
+                                                scope.launch {
+                                                    onSavePhrase(
+                                                        language,
+                                                        turn.text,
+                                                        turn.phonetic,
+                                                        turn.english,
+                                                        GameType.STORY.code
+                                                    ).onSuccess {
+                                                        savedIndices = savedIndices + index
+                                                    }
+                                                }
                                             },
                                             modifier = Modifier
                                                 .size(48.dp)

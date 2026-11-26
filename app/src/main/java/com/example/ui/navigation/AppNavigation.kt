@@ -289,7 +289,8 @@ private fun AuthenticatedStudioShell(userId: String) {
                                 onSelectLanguage = studioViewModel::selectLanguage,
                                 aiRepository = aiRepository,
                                 speakingKey = speakingKey,
-                                onSpeak = studioViewModel::speakText
+                                onSpeak = studioViewModel::speakText,
+                                liveSessionController = studioViewModel.liveSessionController
                             )
                         }
 

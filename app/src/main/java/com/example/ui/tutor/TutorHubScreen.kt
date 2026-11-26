@@ -69,6 +69,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.ai.FirebaseAiRepository
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
@@ -78,7 +79,6 @@ import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
 import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
-import com.google.firebase.ai.type.LiveSession
 import com.google.firebase.ai.type.PublicPreviewAPI
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -97,6 +97,7 @@ fun TutorHubScreen(
     aiRepository: FirebaseAiRepository,
     speakingKey: String?,
     onSpeak: (key: String, text: String, language: TargetLanguage, slow: Boolean) -> Unit,
+    liveSessionController: LiveSessionController = remember { LiveSessionController() },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -119,11 +120,10 @@ fun TutorHubScreen(
     var isStreaming by remember { mutableStateOf(false) }
     var chatError by remember { mutableStateOf<String?>(null) }
 
-    // Live Gemini Audio Session state
-    var liveSession by remember { mutableStateOf<LiveSession?>(null) }
-    var isConnectingLive by remember { mutableStateOf(false) }
-    var isLiveActive by remember { mutableStateOf(false) }
-    var liveError by remember { mutableStateOf<String?>(null) }
+    // Live Gemini Audio Session state owned by controller (survives composable disposal for safe cleanup)
+    val isConnectingLive by liveSessionController.isConnecting.collectAsStateWithLifecycle()
+    val isLiveActive by liveSessionController.isActive.collectAsStateWithLifecycle()
+    val liveError by liveSessionController.error.collectAsStateWithLifecycle()
 
     var hasMicPermission by remember {
         mutableStateOf(
@@ -134,66 +134,20 @@ fun TutorHubScreen(
 
     @SuppressLint("MissingPermission")
     fun startLiveSession() {
-        if (isConnectingLive || isLiveActive) return
-        liveError = null
-        isConnectingLive = true
-        scope.launch {
-            try {
-                val session = aiRepository.connectLiveTutorSession(selectedLanguage, selectedDifficulty)
-                liveSession = session
-                session.startAudioConversation()
-                isLiveActive = true
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                liveError = e.localizedMessage ?: "Unable to connect Live Voice session."
-                try {
-                    liveSession?.close()
-                } catch (_: Exception) {
-                }
-                liveSession = null
-                isLiveActive = false
-            } finally {
-                isConnectingLive = false
-            }
+        liveSessionController.start {
+            FirebaseLiveSessionAdapter(
+                aiRepository.connectLiveTutorSession(selectedLanguage, selectedDifficulty)
+            )
         }
     }
 
     fun stopLiveSession() {
-        val active = liveSession
-        liveSession = null
-        isLiveActive = false
-        if (active != null) {
-            scope.launch {
-                try {
-                    active.stopAudioConversation()
-                } catch (_: Exception) {
-                }
-                try {
-                    active.close()
-                } catch (_: Exception) {
-                }
-            }
-        }
+        liveSessionController.stop()
     }
 
     DisposableEffect(selectedLanguage, selectedDifficulty) {
         onDispose {
-            val active = liveSession
-            liveSession = null
-            isLiveActive = false
-            if (active != null) {
-                scope.launch {
-                    try {
-                        active.stopAudioConversation()
-                    } catch (_: Exception) {
-                    }
-                    try {
-                        active.close()
-                    } catch (_: Exception) {
-                    }
-                }
-            }
+            liveSessionController.stop()
         }
     }
 
@@ -204,7 +158,7 @@ fun TutorHubScreen(
         if (granted) {
             startLiveSession()
         } else {
-            liveError = "Microphone permission is required for real-time voice tutoring."
+            liveSessionController.setError("Microphone permission is required for real-time voice tutoring.")
         }
     }
 

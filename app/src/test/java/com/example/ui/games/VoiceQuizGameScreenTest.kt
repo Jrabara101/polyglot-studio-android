@@ -44,7 +44,7 @@ class VoiceQuizGameScreenTest {
                     aiRepository = FirebaseAiRepository(),
                     speakingKey = null,
                     onSpeak = { _, _, _, _ -> },
-                    onSavePhrase = { _, _, _, _, _ -> },
+                    onSavePhrase = { _, _, _, _, _ -> Result.success("ok") },
                     onCompleteSession = { _, _, _, score, xp, _, _ ->
                         savedCalls += score to xp
                     },

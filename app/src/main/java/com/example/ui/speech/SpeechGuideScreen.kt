@@ -67,6 +67,9 @@ import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
 import kotlinx.coroutines.launch
 
+internal fun PhonemeGuideItem.speechExampleText(): String =
+    exampleWord.replace(" / ", ", ")
+
 @Composable
 fun SpeechGuideScreen(
     selectedLanguage: TargetLanguage,
@@ -75,7 +78,7 @@ fun SpeechGuideScreen(
     speakingKey: String?,
     ttsError: String?,
     onSpeak: (key: String, text: String, language: TargetLanguage, slow: Boolean) -> Unit,
-    onSavePhrase: (TargetLanguage, String, String, String, String) -> Unit,
+    onSavePhrase: suspend (TargetLanguage, String, String, String, String) -> Result<String>,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -107,7 +110,10 @@ fun SpeechGuideScreen(
     ) { granted ->
         hasMicPermission = granted
         if (granted && activeCheckItem != null) {
-            recorder.start(scope)
+            if (!recorder.start(scope)) {
+                checkError = "Microphone unavailable right now. Close other apps using the mic and try again."
+                activeCheckItem = null
+            }
         } else if (!granted) {
             checkError = "Microphone access is required to check your pronunciation."
         }
@@ -236,14 +242,22 @@ fun SpeechGuideScreen(
                             }
                             IconButton(
                                 onClick = {
-                                    onSavePhrase(
-                                        selectedLanguage,
-                                        item.exampleWord,
-                                        item.examplePhonetic,
-                                        item.exampleMeaning,
-                                        "speech_guide"
-                                    )
-                                    savedIds = savedIds + item.id
+                                    checkError = null
+                                    scope.launch {
+                                        val res = onSavePhrase(
+                                            selectedLanguage,
+                                            item.exampleWord,
+                                            item.examplePhonetic,
+                                            item.exampleMeaning,
+                                            "speech"
+                                        )
+                                        res.onSuccess {
+                                            savedIds = savedIds + item.id
+                                        }.onFailure { err ->
+                                            checkError = err.localizedMessage?.takeIf { it.isNotBlank() }
+                                                ?: "Couldn't save phrase to your phrasebook."
+                                        }
+                                    }
                                 },
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
@@ -278,7 +292,7 @@ fun SpeechGuideScreen(
                         ) {
                             TactileButton(
                                 onClick = {
-                                    onSpeak("sg_norm_${item.id}", item.exampleWord, selectedLanguage, false)
+                                    onSpeak("sg_norm_${item.id}", item.speechExampleText(), selectedLanguage, false)
                                 },
                                 containerColor = palette.languageTint,
                                 contentColor = palette.languageAccent,
@@ -299,7 +313,7 @@ fun SpeechGuideScreen(
 
                             TactileButton(
                                 onClick = {
-                                    onSpeak("sg_slow_${item.id}", item.exampleWord, selectedLanguage, true)
+                                    onSpeak("sg_slow_${item.id}", item.speechExampleText(), selectedLanguage, true)
                                 },
                                 containerColor = palette.subtleSurface,
                                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -348,7 +362,10 @@ fun SpeechGuideScreen(
                                     } else {
                                         if (isRecording) recorder.cancel()
                                         activeCheckItem = item
-                                        recorder.start(scope)
+                                        if (!recorder.start(scope)) {
+                                            checkError = "Microphone unavailable right now. Close other apps using the mic and try again."
+                                            activeCheckItem = null
+                                        }
                                     }
                                 },
                                 enabled = evaluatingId == null && (!isRecording || isThisRecording),

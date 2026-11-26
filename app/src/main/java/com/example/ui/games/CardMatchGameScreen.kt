@@ -81,7 +81,7 @@ fun CardMatchGameScreen(
     difficulty: DifficultyLevel,
     speakingKey: String?,
     onSpeak: (key: String, text: String, language: TargetLanguage, slow: Boolean) -> Unit,
-    onSavePhrase: (TargetLanguage, String, String, String, String) -> Unit,
+    onSavePhrase: suspend (TargetLanguage, String, String, String, String) -> Result<String>,
     onCompleteSession: suspend (GameType, TargetLanguage, DifficultyLevel, Int, Int, Int, String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -402,8 +402,9 @@ fun CardMatchGameScreen(
                                             item.phonetic,
                                             item.englishMeaning,
                                             GameType.CARDS.code
-                                        )
-                                        isSavedFeedback = item.id
+                                        ).onSuccess {
+                                            isSavedFeedback = item.id
+                                        }
                                     }
                                 },
                                 modifier = Modifier
