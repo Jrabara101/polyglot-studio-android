@@ -79,6 +79,7 @@ import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
 import com.google.firebase.ai.type.PublicPreviewAPI
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private data class TutorChatMessage(
@@ -117,6 +118,8 @@ fun TutorHubScreen(
     var inputText by remember { mutableStateOf("") }
     var isStreaming by remember { mutableStateOf(false) }
     var chatError by remember { mutableStateOf<String?>(null) }
+    var activeStreamJob by remember { mutableStateOf<Job?>(null) }
+    var streamGeneration by remember { mutableStateOf(0) }
 
     // Live Gemini Audio Session state owned by controller (survives composable disposal for safe cleanup)
     val isConnectingLive by liveSessionController.isConnecting.collectAsStateWithLifecycle()
@@ -143,8 +146,16 @@ fun TutorHubScreen(
         liveSessionController.stop()
     }
 
+    fun cancelActiveStream() {
+        streamGeneration += 1
+        activeStreamJob?.cancel()
+        activeStreamJob = null
+        isStreaming = false
+    }
+
     DisposableEffect(selectedLanguage, selectedDifficulty) {
         onDispose {
+            cancelActiveStream()
             liveSessionController.stop()
         }
     }
@@ -175,17 +186,20 @@ fun TutorHubScreen(
         val assistantIndex = messages.size
         messages.add(TutorChatMessage(isUser = false, text = ""))
         isStreaming = true
+        val myGeneration = ++streamGeneration
+        activeStreamJob?.cancel()
 
-        scope.launch {
+        activeStreamJob = scope.launch {
             val sb = StringBuilder()
             try {
                 aiRepository.sendTutorMessageStream(chatSession, clean).collect { chunk ->
+                    if (streamGeneration != myGeneration) return@collect
                     sb.append(chunk)
                     if (assistantIndex < messages.size) {
                         messages[assistantIndex] = TutorChatMessage(isUser = false, text = sb.toString())
                     }
                 }
-                if (sb.isBlank() && assistantIndex < messages.size) {
+                if (streamGeneration == myGeneration && sb.isBlank() && assistantIndex < messages.size) {
                     messages[assistantIndex] = TutorChatMessage(
                         isUser = false,
                         text = "I didn't catch that—could you rephrase your question?"
@@ -194,12 +208,17 @@ fun TutorHubScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                chatError = e.localizedMessage ?: "Tutor response failed."
-                if (assistantIndex < messages.size && messages[assistantIndex].text.isBlank()) {
-                    messages.removeAt(assistantIndex)
+                if (streamGeneration == myGeneration) {
+                    chatError = e.localizedMessage ?: "Tutor response failed."
+                    if (assistantIndex < messages.size && messages[assistantIndex].text.isBlank()) {
+                        messages.removeAt(assistantIndex)
+                    }
                 }
             } finally {
-                isStreaming = false
+                if (streamGeneration == myGeneration) {
+                    isStreaming = false
+                    activeStreamJob = null
+                }
             }
         }
     }
@@ -276,6 +295,7 @@ fun TutorHubScreen(
                     }
                     IconButton(
                         onClick = {
+                            cancelActiveStream()
                             chatSession = aiRepository.startTutorChat(selectedLanguage, selectedDifficulty)
                             messages.clear()
                             messages.add(
@@ -301,6 +321,7 @@ fun TutorHubScreen(
                 LanguageSelectorRow(
                     selectedLanguage = selectedLanguage,
                     onSelectLanguage = {
+                        cancelActiveStream()
                         stopLiveSession()
                         onSelectLanguage(it)
                     }

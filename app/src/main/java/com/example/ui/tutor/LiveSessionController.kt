@@ -5,11 +5,14 @@ import com.google.firebase.ai.type.LiveSession
 import com.google.firebase.ai.type.PublicPreviewAPI
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,6 +55,9 @@ class LiveSessionController(
     private val sessionLock = Any()
     private var activeSession: CloseableLiveSession? = null
     private var connectJob: Job? = null
+    private var currentToken: Long = 0L
+    private var isShutDown: Boolean = false
+    private val pendingCloseJobs = mutableSetOf<Job>()
 
     private val _isConnecting = MutableStateFlow(false)
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
@@ -67,77 +73,153 @@ class LiveSessionController(
     }
 
     fun start(connect: suspend () -> CloseableLiveSession) {
-        if (_isConnecting.value || _isActive.value) return
-        _error.value = null
-        _isConnecting.value = true
-        connectJob = scope.launch {
+        val myToken = synchronized(sessionLock) {
+            if (isShutDown || _isConnecting.value || _isActive.value) return
+            currentToken += 1L
+            _error.value = null
+            _isConnecting.value = true
+            currentToken
+        }
+
+        val job = scope.launch {
             var opened: CloseableLiveSession? = null
             try {
                 val session = connect()
                 opened = session
-                synchronized(sessionLock) {
-                    activeSession = session
+                val adopted = synchronized(sessionLock) {
+                    if (currentToken == myToken && !isShutDown) {
+                        activeSession = session
+                        true
+                    } else {
+                        false
+                    }
                 }
+                if (!adopted) {
+                    closeQuietly(session)
+                    return@launch
+                }
+                currentCoroutineContext().ensureActive()
                 session.startAudioConversation()
-                _isActive.value = true
-            } catch (e: CancellationException) {
-                opened?.let { closeQuietly(it) }
                 synchronized(sessionLock) {
-                    if (activeSession === opened) activeSession = null
+                    if (currentToken == myToken && activeSession === session) {
+                        _isActive.value = true
+                    }
                 }
-                _isActive.value = false
+            } catch (e: CancellationException) {
+                val toClose = claimSessionIfStillActive(opened)
+                if (toClose != null) {
+                    closeQuietly(toClose)
+                }
+                synchronized(sessionLock) {
+                    if (currentToken == myToken) {
+                        _isActive.value = false
+                    }
+                }
                 throw e
             } catch (e: Exception) {
-                _error.value = e.localizedMessage ?: "Unable to connect Live Voice session."
-                opened?.let { closeQuietly(it) }
-                synchronized(sessionLock) {
-                    if (activeSession === opened) activeSession = null
+                val toClose = claimSessionIfStillActive(opened)
+                if (toClose != null) {
+                    closeQuietly(toClose)
                 }
-                _isActive.value = false
+                synchronized(sessionLock) {
+                    if (currentToken == myToken) {
+                        _error.value = e.localizedMessage ?: "Unable to connect Live Voice session."
+                        _isActive.value = false
+                    }
+                }
             } finally {
-                _isConnecting.value = false
+                synchronized(sessionLock) {
+                    if (currentToken == myToken) {
+                        _isConnecting.value = false
+                    }
+                }
+            }
+        }
+        synchronized(sessionLock) {
+            if (currentToken == myToken) {
+                connectJob = job
+            } else {
+                job.cancel()
             }
         }
     }
 
     fun stop() {
-        connectJob?.cancel()
-        connectJob = null
-        val sessionToClose = synchronized(sessionLock) {
+        val (jobToCancel, sessionToClose) = synchronized(sessionLock) {
+            currentToken += 1L
+            val j = connectJob
+            connectJob = null
             val s = activeSession
             activeSession = null
-            s
+            _isConnecting.value = false
+            _isActive.value = false
+            j to s
         }
-        _isConnecting.value = false
-        _isActive.value = false
+        jobToCancel?.cancel()
         if (sessionToClose != null) {
-            scope.launch {
-                closeQuietly(sessionToClose)
-            }
+            launchTrackedClose(sessionToClose)
         }
     }
 
     fun shutdown() {
-        connectJob?.cancel()
-        connectJob = null
-        val sessionToClose = synchronized(sessionLock) {
+        val (jobToCancel, sessionToClose, existingCloseJobs) = synchronized(sessionLock) {
+            isShutDown = true
+            currentToken += 1L
+            val j = connectJob
+            connectJob = null
             val s = activeSession
             activeSession = null
-            s
+            _isConnecting.value = false
+            _isActive.value = false
+            Triple(j, s, pendingCloseJobs.toList())
         }
-        _isConnecting.value = false
-        _isActive.value = false
-        if (sessionToClose != null) {
-            scope.launch {
+        jobToCancel?.cancel()
+
+        val allCloseJobs = buildList {
+            addAll(existingCloseJobs)
+            if (sessionToClose != null) {
+                add(launchTrackedClose(sessionToClose))
+            }
+        }
+
+        if (allCloseJobs.isEmpty()) {
+            scope.cancel()
+        } else {
+            scope.launch(start = CoroutineStart.ATOMIC) {
                 try {
-                    closeQuietly(sessionToClose)
+                    allCloseJobs.forEach { it.join() }
                 } finally {
                     scope.cancel()
                 }
             }
-        } else {
-            scope.cancel()
         }
+    }
+
+    private fun claimSessionIfStillActive(expected: CloseableLiveSession?): CloseableLiveSession? {
+        if (expected == null) return null
+        return synchronized(sessionLock) {
+            if (activeSession === expected) {
+                activeSession = null
+                expected
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun launchTrackedClose(session: CloseableLiveSession): Job {
+        val closeJob = scope.launch(start = CoroutineStart.ATOMIC) {
+            closeQuietly(session)
+        }
+        synchronized(sessionLock) {
+            pendingCloseJobs.add(closeJob)
+        }
+        closeJob.invokeOnCompletion {
+            synchronized(sessionLock) {
+                pendingCloseJobs.remove(closeJob)
+            }
+        }
+        return closeJob
     }
 
     private suspend fun closeQuietly(session: CloseableLiveSession) = withContext(NonCancellable) {

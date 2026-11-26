@@ -19,8 +19,8 @@ class MainActivity : ComponentActivity() {
         Lexicon.init(applicationContext)
         StoryCatalog.init(applicationContext)
         lifecycleScope.launch(Dispatchers.IO) {
-            Lexicon.preloadAsync()
-            StoryCatalog.preloadAsync()
+            launch { Lexicon.preloadAsync() }
+            launch { StoryCatalog.preloadAsync() }
         }
         configureAppCheck(this, intent)
         setContent {

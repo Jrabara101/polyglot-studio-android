@@ -135,6 +135,7 @@ fun StoryGameScreen(
     }
     var userTurnCount by remember(roundKey, language, difficulty, story.id) { mutableIntStateOf(0) }
     var savedIndices by remember(roundKey, language, difficulty, story.id) { mutableStateOf(setOf<Int>()) }
+    var bookmarkError by remember(roundKey, language, difficulty, story.id) { mutableStateOf<String?>(null) }
     var startTimeMs by remember(roundKey, language, difficulty, story.id) {
         mutableLongStateOf(System.currentTimeMillis())
     }
@@ -558,6 +559,7 @@ fun StoryGameScreen(
                                         }
                                         IconButton(
                                             onClick = {
+                                                bookmarkError = null
                                                 scope.launch {
                                                     onSavePhrase(
                                                         language,
@@ -567,6 +569,9 @@ fun StoryGameScreen(
                                                         GameType.STORY.code
                                                     ).onSuccess {
                                                         savedIndices = savedIndices + index
+                                                    }.onFailure { err ->
+                                                        bookmarkError = err.localizedMessage?.takeIf { it.isNotBlank() }
+                                                            ?: "Couldn't save phrase to your phrasebook."
                                                     }
                                                 }
                                             },
@@ -600,6 +605,15 @@ fun StoryGameScreen(
                                             text = turn.english,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (bookmarkError != null && index == turns.lastIndex) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            text = bookmarkError ?: "",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = palette.danger,
+                                            modifier = Modifier.testTag("story_bookmark_error")
                                         )
                                     }
                                 }
@@ -694,7 +708,7 @@ fun StoryGameScreen(
                                     saveStoryResult(avg, xp, duration)
                                 },
                                 containerColor = palette.success,
-                                contentColor = palette.onLanguageAccent,
+                                contentColor = palette.onSuccess,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("story_complete_button")

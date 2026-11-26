@@ -119,6 +119,7 @@ fun CardMatchGameScreen(
     var bestCombo by remember(roundKey, language, difficulty) { mutableIntStateOf(0) }
     var isInputLocked by remember(roundKey, language, difficulty) { mutableStateOf(false) }
     var isSavedFeedback by remember { mutableStateOf<String?>(null) }
+    var bookmarkError by remember(roundKey, language, difficulty, lastRevealedTarget) { mutableStateOf<String?>(null) }
     var startTimeMs by remember(roundKey, language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
     var saveState by remember(roundKey, language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
     var completedResult by remember(roundKey, language, difficulty) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -372,9 +373,18 @@ fun CardMatchGameScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = if (isSavedFeedback == item.id) "Saved to Phrasebook!" else item.phonetic,
+                                    text = when {
+                                        bookmarkError != null -> bookmarkError ?: ""
+                                        isSavedFeedback == item.id -> "Saved to Phrasebook!"
+                                        else -> item.phonetic
+                                    },
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = if (isSavedFeedback == item.id) palette.success else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = when {
+                                        bookmarkError != null -> palette.danger
+                                        isSavedFeedback == item.id -> palette.success
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = if (bookmarkError != null) Modifier.testTag("card_bookmark_error") else Modifier
                                 )
                             }
                             IconButton(
@@ -393,6 +403,7 @@ fun CardMatchGameScreen(
                             }
                             IconButton(
                                 onClick = {
+                                    bookmarkError = null
                                     scope.launch {
                                         onSavePhrase(
                                             language,
@@ -402,6 +413,9 @@ fun CardMatchGameScreen(
                                             GameType.CARDS.code
                                         ).onSuccess {
                                             isSavedFeedback = item.id
+                                        }.onFailure { err ->
+                                            bookmarkError = err.localizedMessage?.takeIf { it.isNotBlank() }
+                                                ?: "Couldn't save phrase."
                                         }
                                     }
                                 },

@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
 
 private const val TAG = "AudioEngine"
@@ -85,7 +87,10 @@ class PcmAudioPlayer {
 
     suspend fun playPcm24k(pcmBytes: ByteArray) = withContext(Dispatchers.IO) {
         if (pcmBytes.isEmpty()) return@withContext
+        currentCoroutineContext().ensureActive()
         stop()
+        currentCoroutineContext().ensureActive()
+
         val sampleRate = 24_000
         val minBuf = AudioTrack.getMinBufferSize(
             sampleRate,
@@ -111,53 +116,67 @@ class PcmAudioPlayer {
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
 
-        synchronized(trackLock) {
-            currentTrack = track
+        if (track.state != AudioTrack.STATE_INITIALIZED) {
+            Log.e(TAG, "AudioTrack failed to initialize (state=${track.state})")
+            safeRelease(track)
+            return@withContext
         }
+
+        val ctx = currentCoroutineContext()
         try {
+            synchronized(trackLock) {
+                ctx.ensureActive()
+                currentTrack = track
+            }
             val startTimeMs = System.currentTimeMillis()
             track.play()
             var offset = 0
+            var writeFailed = false
             val chunkSize = 4096
             while (offset < pcmBytes.size && currentCoroutineContext().isActive) {
                 val len = minOf(chunkSize, pcmBytes.size - offset)
                 val written = track.write(pcmBytes, offset, len)
-                if (written <= 0) break
+                if (written <= 0) {
+                    writeFailed = true
+                    break
+                }
                 offset += written
             }
-            val expectedDurationMs = computePcmDurationMs(pcmBytes.size, sampleRate)
-            val elapsedMs = System.currentTimeMillis() - startTimeMs
-            val remainingMs = (expectedDurationMs - elapsedMs + 150L).coerceAtLeast(150L)
-            delay(remainingMs)
+            if (!writeFailed && currentCoroutineContext().isActive && currentTrack === track) {
+                val expectedDurationMs = computePcmDurationMs(offset, sampleRate)
+                val elapsedMs = System.currentTimeMillis() - startTimeMs
+                val remainingMs = (expectedDurationMs - elapsedMs + 150L).coerceAtLeast(150L)
+                delay(remainingMs)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "AudioTrack playback failed", e)
         } finally {
-            releaseTrackIfMatches(track)
+            synchronized(trackLock) {
+                if (currentTrack === track) {
+                    currentTrack = null
+                }
+            }
+            // Sole owner of release(): safe after write() has exited on this IO coroutine.
+            safeRelease(track)
         }
     }
 
+    /** Unblocks any active write() without calling release() concurrently from another thread. */
     fun stop() {
-        val toRelease = synchronized(trackLock) {
+        val toStop = synchronized(trackLock) {
             val t = currentTrack
             currentTrack = null
             t
         } ?: return
-        safeRelease(toRelease)
-    }
-
-    private fun releaseTrackIfMatches(track: AudioTrack) {
-        val shouldRelease = synchronized(trackLock) {
-            if (currentTrack === track) {
-                currentTrack = null
-                true
-            } else {
-                false
+        try {
+            if (toStop.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                toStop.pause()
+                toStop.flush()
+                toStop.stop()
             }
-        }
-        if (shouldRelease) {
-            safeRelease(track)
+        } catch (_: Exception) {
         }
     }
 
@@ -166,6 +185,9 @@ class PcmAudioPlayer {
             if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
                 track.stop()
             }
+        } catch (_: Exception) {
+        }
+        try {
             track.release()
         } catch (_: Exception) {
         }
@@ -177,7 +199,13 @@ class WavAudioRecorder {
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
+    private val recordLock = Any()
+    private val sessionToken = AtomicLong(0L)
+
     private var recordingJob: Job? = null
+
+    @Volatile
+    private var activeRecord: AudioRecord? = null
 
     @Volatile
     private var pcmStream: ByteArrayOutputStream? = null
@@ -192,43 +220,68 @@ class WavAudioRecorder {
     fun start(
         scope: CoroutineScope,
         maxDurationMs: Long = MAX_RECORDING_DURATION_MS,
-        onAutoStop: (() -> Unit)? = null
+        onAutoStop: (() -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
     ): Boolean {
         if (_isRecording.value) return true
         val minBuf = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             .coerceAtLeast(3200)
-        val record = try {
-            AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                sampleRate,
-                channelConfig,
-                audioFormat,
-                minBuf * 2
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "AudioRecord creation failed", e)
-            return false
-        }
-        if (record.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(TAG, "AudioRecord failed to initialize")
-            try {
-                record.release()
-            } catch (_: Exception) {
+
+        val previousJob = synchronized(recordLock) {
+            val prev = recordingJob
+            val prevRecord = activeRecord
+            activeRecord = null
+            if (prevRecord != null) {
+                try {
+                    if (prevRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                        prevRecord.stop()
+                    }
+                } catch (_: Exception) {
+                }
             }
-            return false
+            prev?.cancel()
+            prev
         }
 
+        // If no previous capture is unwinding, probe AudioRecord synchronously so callers get
+        // immediate false when the mic hardware cannot initialize.
+        val prebuiltRecord: AudioRecord? = if (previousJob == null || previousJob.isCompleted) {
+            createInitializedRecord(minBuf) ?: return false
+        } else {
+            null
+        }
+
+        val myToken = sessionToken.incrementAndGet()
         val maxBytes = maxRecordingBytes(sampleRate, maxDurationMs)
         val out = ByteArrayOutputStream()
         pcmStream = out
         _isRecording.value = true
 
-        recordingJob = scope.launch(Dispatchers.IO) {
-            val buffer = ByteArray(minBuf)
+        val job = scope.launch(Dispatchers.IO) {
+            var record: AudioRecord? = prebuiltRecord
             var hitCap = false
+            var captureError: String? = null
             try {
+                // Wait for any prior recording job to finish releasing the mic before opening a new one.
+                previousJob?.join()
+                if (sessionToken.get() != myToken || !isActive) return@launch
+
+                if (record == null) {
+                    record = createInitializedRecord(minBuf)
+                    if (record == null) {
+                        captureError = "Microphone unavailable right now. Close other apps using the mic and try again."
+                        return@launch
+                    }
+                }
+
+                synchronized(recordLock) {
+                    if (sessionToken.get() != myToken) return@launch
+                    activeRecord = record
+                }
+
                 record.startRecording()
-                while (isActive && _isRecording.value) {
+                val buffer = ByteArray(minBuf)
+                while (isActive && _isRecording.value && sessionToken.get() == myToken) {
                     val read = record.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         val remaining = maxBytes - out.size()
@@ -252,44 +305,118 @@ class WavAudioRecorder {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error during AudioRecord capture", e)
+                captureError = "Microphone capture failed. Please try again."
             } finally {
-                try {
-                    if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                        record.stop()
+                synchronized(recordLock) {
+                    if (activeRecord === record) {
+                        activeRecord = null
                     }
-                } catch (_: Exception) {
                 }
-                try {
-                    record.release()
-                } catch (_: Exception) {
+                if (record != null) {
+                    try {
+                        if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                            record.stop()
+                        }
+                    } catch (_: Exception) {
+                    }
+                    try {
+                        record.release()
+                    } catch (_: Exception) {
+                    }
                 }
-                _amplitude.value = 0f
-                _isRecording.value = false
-                if (hitCap && onAutoStop != null) {
+                val isStillOwner = sessionToken.get() == myToken
+                if (isStillOwner) {
+                    _amplitude.value = 0f
+                    _isRecording.value = false
+                }
+                if (isStillOwner && captureError != null && onError != null) {
+                    withContext(Dispatchers.Main.immediate) {
+                        onError(captureError)
+                    }
+                } else if (isStillOwner && hitCap && onAutoStop != null) {
                     withContext(Dispatchers.Main.immediate) {
                         onAutoStop()
                     }
                 }
             }
         }
+        synchronized(recordLock) {
+            if (sessionToken.get() == myToken) {
+                recordingJob = job
+            }
+        }
         return true
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun createInitializedRecord(minBuf: Int): AudioRecord? {
+        val record = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                channelConfig,
+                audioFormat,
+                minBuf * 2
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "AudioRecord creation failed", e)
+            return null
+        }
+        if (record.state != AudioRecord.STATE_INITIALIZED) {
+            Log.e(TAG, "AudioRecord failed to initialize")
+            try {
+                record.release()
+            } catch (_: Exception) {
+            }
+            return null
+        }
+        return record
     }
 
     suspend fun stopAndGetWav(): ByteArray {
         _isRecording.value = false
-        recordingJob?.join()
-        recordingJob = null
+        val (job, record) = synchronized(recordLock) {
+            recordingJob to activeRecord
+        }
+        if (record != null) {
+            try {
+                if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    record.stop()
+                }
+            } catch (_: Exception) {
+            }
+        }
+        job?.join()
+        synchronized(recordLock) {
+            if (recordingJob === job) recordingJob = null
+        }
         val pcmBytes = pcmStream?.toByteArray() ?: ByteArray(0)
         pcmStream = null
         return if (pcmBytes.isEmpty()) ByteArray(0) else wrapPcmAsWav(pcmBytes, sampleRate, 1, 16)
     }
 
     fun cancel() {
+        sessionToken.incrementAndGet()
         _isRecording.value = false
-        recordingJob?.cancel()
-        recordingJob = null
-        pcmStream = null
         _amplitude.value = 0f
+        val (job, record) = synchronized(recordLock) {
+            val j = recordingJob
+            val r = activeRecord
+            recordingJob = null
+            activeRecord = null
+            j to r
+        }
+        // Unblock any blocking AudioRecord.read() while leaving release() solely to the IO finally block.
+        if (record != null) {
+            try {
+                if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    record.stop()
+                }
+            } catch (_: Exception) {
+            }
+        }
+        job?.cancel()
+        pcmStream = null
     }
 
     private fun computeNormalizedAmplitude(bytes: ByteArray, length: Int): Float {

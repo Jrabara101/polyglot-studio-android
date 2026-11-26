@@ -85,7 +85,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(
             }
         }
 
-        // Bold + Italic: ***text***
+        // Bold + Italic: ***text*** (also handles unclosed trailing *** during streaming)
         if (i + 2 < n && text[i] == '*' && text[i + 1] == '*' && text[i + 2] == '*') {
             val end = text.indexOf("***", i + 3)
             if (end > i + 3) {
@@ -98,6 +98,15 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(
                 )
                 i = end + 3
                 continue
+            } else {
+                val start = length
+                append(text.substring(i + 3))
+                addStyle(
+                    SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic),
+                    start,
+                    length
+                )
+                return
             }
         }
 

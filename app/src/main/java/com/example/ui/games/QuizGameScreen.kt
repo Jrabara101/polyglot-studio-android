@@ -196,6 +196,8 @@ fun QuizGameScreen(
                                             selectedOption = null
                                             startTimeMs = System.currentTimeMillis()
                                         }
+                                    } catch (e: CancellationException) {
+                                        throw e
                                     } catch (e: Exception) {
                                         aiError = e.localizedMessage ?: "Could not generate AI quiz round."
                                     } finally {
@@ -407,6 +409,8 @@ fun QuizGameScreen(
                                                             snippet = question.targetSnippet,
                                                             correctOption = question.options.getOrElse(question.correctIndex) { "" }
                                                         )
+                                                    } catch (e: CancellationException) {
+                                                        throw e
                                                     } catch (e: Exception) {
                                                         deepExplanation = e.localizedMessage ?: "Explanation unavailable."
                                                     } finally {

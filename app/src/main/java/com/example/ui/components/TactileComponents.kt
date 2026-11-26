@@ -279,7 +279,7 @@ fun DifficultySelectorRow(
             val selected = level == selectedDifficulty
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = if (selected) palette.inkBorder else palette.cardSurface,
+                color = if (selected) MaterialTheme.colorScheme.onSurface else palette.cardSurface,
                 border = BorderStroke(1.5.dp, palette.inkBorder),
                 modifier = Modifier
                     .weight(1f)
@@ -295,7 +295,7 @@ fun DifficultySelectorRow(
                     Text(
                         text = level.label,
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (selected) palette.cardSurface else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
                 }

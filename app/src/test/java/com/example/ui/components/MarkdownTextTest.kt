@@ -38,9 +38,12 @@ class MarkdownTextTest {
 
     @Test
     fun parseSimpleMarkdown_handles_partial_streaming_markdown_without_crashing() {
-        val partial = "Great job! Try **Bonjour"
-        val rendered = parseSimpleMarkdown(partial)
-        assertTrue(rendered.text.contains("Bonjour"))
+        val partialBold = parseSimpleMarkdown("Great job! Try **Bonjour")
+        assertTrue(partialBold.text.contains("Bonjour"))
+        assertFalse(partialBold.text.contains("**"))
+
+        val partialBoldItalic = parseSimpleMarkdown("Try ***Salut")
+        assertEquals("Try Salut", partialBoldItalic.text)
     }
 
     @Test

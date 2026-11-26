@@ -15,6 +15,7 @@
 -keep,includedescriptorclasses class com.example.**$$serializer { *; }
 -keepclassmembers class com.example.** {
     *** Companion;
+    *** INSTANCE;
 }
 -keepclasseswithmembers class com.example.** {
     kotlinx.serialization.KSerializer serializer(...);

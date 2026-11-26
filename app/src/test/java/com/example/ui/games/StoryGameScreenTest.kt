@@ -305,4 +305,29 @@ class StoryGameScreenTest {
         compose.onNodeWithTag("retry_save_button").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("next_story_button").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun bookmark_failure_shows_inline_error_without_silent_swallow() {
+        compose.setContent {
+            PolyglotStudioTheme(activeLanguage = TargetLanguage.JAPANESE, darkTheme = false) {
+                StoryGameScreen(
+                    language = TargetLanguage.JAPANESE,
+                    difficulty = DifficultyLevel.BEGINNER,
+                    speakingKey = null,
+                    onSpeak = { _, _, _, _ -> },
+                    onSavePhrase = { _, _, _, _, _ ->
+                        Result.failure(IllegalStateException("Phrasebook write rejected"))
+                    },
+                    onCompleteSession = { _, _, _, _, _, _, _ -> },
+                    onBack = {}
+                )
+            }
+        }
+
+        compose.onNodeWithTag("story_bookmark_0").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("story_bookmark_error").assertIsDisplayed()
+        compose.onNodeWithText("Phrasebook write rejected").assertIsDisplayed()
+    }
 }

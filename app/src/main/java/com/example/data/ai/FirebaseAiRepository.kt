@@ -10,6 +10,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.ai.Chat
 import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.ai
+import com.google.firebase.ai.type.Content
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.InlineDataPart
 import com.google.firebase.ai.type.LiveSession
@@ -23,8 +24,13 @@ import com.google.firebase.ai.type.generationConfig
 import com.google.firebase.ai.type.liveGenerationConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.Collections
@@ -70,7 +76,8 @@ class GradingUnavailableException(cause: Throwable?) : IllegalStateException(
 
 /**
  * Tries each `(modelName, model)` in order with a per-model timeout, falling back to the next
- * model on timeouts or transient errors while immediately propagating external cancellation.
+ * model on timeouts or transient errors while immediately propagating external cancellation
+ * (including outer timeouts).
  */
 internal suspend fun <M, T> runWithModelFallback(
     label: String,
@@ -83,9 +90,12 @@ internal suspend fun <M, T> runWithModelFallback(
 ): T {
     var lastError: Throwable? = null
     for ((name, model) in models) {
+        currentCoroutineContext().ensureActive()
         try {
             return withTimeout(timeoutMs) { call(model) }
         } catch (e: TimeoutCancellationException) {
+            // Re-throw if an outer coroutine/timeout cancelled us rather than this per-model timeout.
+            currentCoroutineContext().ensureActive()
             safeLogWarn("$label with $name timed out after ${timeoutMs}ms", e)
             lastError = e
         } catch (e: CancellationException) {
@@ -96,6 +106,93 @@ internal suspend fun <M, T> runWithModelFallback(
         }
     }
     throw failureFactory(lastError)
+}
+
+/**
+ * Streams chunks from a list of model names with a per-model first-chunk timeout and automatic
+ * pre-first-chunk failover. Maintains a canonical `(role, text)` transcript so failing over
+ * mid-conversation seeds the backup model with full prior turns.
+ */
+internal fun <M> streamChatWithModelFallback(
+    modelNames: List<String>,
+    preferredIndex: Int,
+    onPreferredIndexChanged: (Int) -> Unit,
+    firstChunkTimeoutMs: Long = MODEL_FALLBACK_TIMEOUT_MS,
+    openStream: (modelName: String) -> Flow<String>,
+    onTurnCompleted: (fullReply: String) -> Unit = {}
+): Flow<String> = flow {
+    val orderedIndices = (preferredIndex until modelNames.size) + (0 until preferredIndex)
+    var lastError: Throwable? = null
+
+    for (idx in orderedIndices) {
+        currentCoroutineContext().ensureActive()
+        val name = modelNames[idx]
+        var emittedAny = false
+        val replyBuffer = StringBuilder()
+
+        try {
+            coroutineScope {
+                val channel = Channel<Result<String>>(Channel.BUFFERED)
+                val collectorJob = launch {
+                    try {
+                        openStream(name).collect { chunk ->
+                            if (chunk.isNotEmpty()) {
+                                channel.send(Result.success(chunk))
+                            }
+                        }
+                        channel.close()
+                    } catch (e: CancellationException) {
+                        channel.close()
+                        throw e
+                    } catch (e: Exception) {
+                        channel.trySend(Result.failure(e))
+                        channel.close()
+                    }
+                }
+
+                try {
+                    val first = withTimeout(firstChunkTimeoutMs) {
+                        channel.receiveCatching()
+                    }
+                    val firstValue = first.getOrNull()
+                    if (firstValue != null) {
+                        val text = firstValue.getOrThrow()
+                        emittedAny = true
+                        replyBuffer.append(text)
+                        emit(text)
+
+                        for (next in channel) {
+                            val chunkText = next.getOrThrow()
+                            replyBuffer.append(chunkText)
+                            emit(chunkText)
+                        }
+                    }
+                } finally {
+                    collectorJob.cancel()
+                }
+            }
+
+            onPreferredIndexChanged(idx)
+            onTurnCompleted(replyBuffer.toString())
+            return@flow
+        } catch (e: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            if (emittedAny) throw e
+            safeLogWarn("Tutor stream with $name timed out waiting for first chunk", e)
+            lastError = e
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (emittedAny) throw e
+            safeLogWarn("Tutor stream with $name failed before first chunk, trying fallback", e)
+            lastError = e
+        }
+    }
+
+    throw IllegalStateException(
+        "Lumi is busy right now. Please try again in a moment.",
+        lastError
+    )
 }
 
 private fun safeLogWarn(message: String, error: Throwable) {
@@ -135,12 +232,51 @@ data class StoryTurnResponse(
     val suggestedReplies: List<StoryChoiceSeed>
 )
 
-/** Holds a fast-first primary chat and backup chat for automatic Tutor streaming failover. */
+/**
+ * Holds canonical conversation history and per-model chat factories so Tutor streaming can
+ * fail over cleanly from fast-lite to standard Flash without losing prior turns.
+ */
 class TutorChatSession internal constructor(
-    internal val chats: List<Pair<String, Chat>>
+    internal val modelNames: List<String>,
+    private val createChat: (modelName: String, history: List<Content>) -> Chat
 ) {
+    private val lock = Any()
+    private val canonicalHistory = mutableListOf<Content>()
+    private var activeModelIndex: Int = 0
+    private var activeChat: Chat? = null
+
     @Volatile
     internal var preferredIndex: Int = 0
+
+    internal fun openStreamForModel(modelName: String, message: String): Flow<String> {
+        val chat = synchronized(lock) {
+            val targetIdx = modelNames.indexOf(modelName)
+            val existing = activeChat
+            if (existing != null && activeModelIndex == targetIdx) {
+                existing
+            } else {
+                createChat(modelName, canonicalHistory.toList()).also {
+                    activeChat = it
+                    activeModelIndex = targetIdx
+                }
+            }
+        }
+        return flow {
+            chat.sendMessageStream(message).collect { chunk ->
+                val text = chunk.text.orEmpty()
+                if (text.isNotEmpty()) emit(text)
+            }
+        }
+    }
+
+    internal fun recordCompletedTurn(userMessage: String, assistantReply: String) {
+        synchronized(lock) {
+            canonicalHistory += content(role = "user") { text(userMessage) }
+            if (assistantReply.isNotBlank()) {
+                canonicalHistory += content(role = "model") { text(assistantReply) }
+            }
+        }
+    }
 }
 
 @OptIn(PublicPreviewAPI::class)
@@ -453,45 +589,29 @@ class FirebaseAiRepository {
                     "Keep responses crisp, structured, and under 120 words unless asked for deeper grammar."
             )
         }
-        val chats = FAST_FALLBACK_MODELS.map { modelName ->
-            modelName to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+        val modelsByName = FAST_FALLBACK_MODELS.associateWith { modelName ->
+            Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
                 modelName = modelName,
                 systemInstruction = sys
-            ).startChat()
+            )
         }
-        return TutorChatSession(chats)
-    }
-
-    fun sendTutorMessageStream(session: TutorChatSession, message: String): Flow<String> = flow {
-        val orderedIndices = (session.preferredIndex until session.chats.size) +
-            (0 until session.preferredIndex)
-        var lastError: Throwable? = null
-        for (idx in orderedIndices) {
-            val (name, chat) = session.chats[idx]
-            var emittedAny = false
-            try {
-                chat.sendMessageStream(message).collect { chunk ->
-                    val text = chunk.text.orEmpty()
-                    if (text.isNotEmpty()) {
-                        emittedAny = true
-                        emit(text)
-                    }
-                }
-                session.preferredIndex = idx
-                return@flow
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (emittedAny) throw e
-                safeLogWarn("Tutor stream with $name failed before first chunk, trying fallback", e)
-                lastError = e
+        return TutorChatSession(
+            modelNames = FAST_FALLBACK_MODELS,
+            createChat = { modelName, history ->
+                modelsByName.getValue(modelName).startChat(history = history)
             }
-        }
-        throw IllegalStateException(
-            "Lumi is busy right now. Please try again in a moment.",
-            lastError
         )
     }
+
+    fun sendTutorMessageStream(session: TutorChatSession, message: String): Flow<String> =
+        streamChatWithModelFallback<Unit>(
+            modelNames = session.modelNames,
+            preferredIndex = session.preferredIndex,
+            onPreferredIndexChanged = { session.preferredIndex = it },
+            firstChunkTimeoutMs = MODEL_FALLBACK_TIMEOUT_MS,
+            openStream = { modelName -> session.openStreamForModel(modelName, message) },
+            onTurnCompleted = { fullReply -> session.recordCompletedTurn(message, fullReply) }
+        )
 
     suspend fun connectLiveTutorSession(
         language: TargetLanguage,
@@ -525,6 +645,7 @@ class FirebaseAiRepository {
         return try {
             withTimeout(AI_TIMEOUT_MS) { block() }
         } catch (e: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
             Log.e(TAG, "$label timed out after ${AI_TIMEOUT_MS}ms", e)
             throw IllegalStateException("$label timed out. Please try again.")
         } catch (e: CancellationException) {

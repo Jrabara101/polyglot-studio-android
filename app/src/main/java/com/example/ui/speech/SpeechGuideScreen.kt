@@ -59,6 +59,7 @@ import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
 import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 internal fun PhonemeGuideItem.speechExampleText(): String =
@@ -99,16 +100,59 @@ fun SpeechGuideScreen(
     var checkError by remember { mutableStateOf<String?>(null) }
     var savedIds by remember { mutableStateOf(setOf<String>()) }
 
+    fun stopAndGrade(item: PhonemeGuideItem) {
+        if (evaluatingId != null) return
+        scope.launch {
+            evaluatingId = item.id
+            try {
+                val wav = recorder.stopAndGetWav()
+                if (wav.size <= 44) {
+                    checkError = "No speech detected—hold slightly longer while speaking."
+                } else {
+                    val res = aiRepository.evaluateSpokenAudio(
+                        wavBytes = wav,
+                        expectedPhrase = item.exampleWord,
+                        language = selectedLanguage
+                    )
+                    activeEval = item.id to res
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                checkError = e.localizedMessage?.takeIf { it.isNotBlank() } ?: "Pronunciation check failed."
+            } finally {
+                evaluatingId = null
+                activeCheckItem = null
+            }
+        }
+    }
+
+    fun startRecordingFor(item: PhonemeGuideItem) {
+        if (isRecording) recorder.cancel()
+        activeCheckItem = item
+        val started = recorder.start(
+            scope = scope,
+            onAutoStop = { stopAndGrade(item) },
+            onError = { msg ->
+                checkError = msg
+                activeCheckItem = null
+            }
+        )
+        if (!started) {
+            checkError = "Microphone unavailable right now. Close other apps using the mic and try again."
+            activeCheckItem = null
+        }
+    }
+
     val micLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasMicPermission = granted
-        if (granted && activeCheckItem != null) {
-            if (!recorder.start(scope)) {
-                checkError = "Microphone unavailable right now. Close other apps using the mic and try again."
-                activeCheckItem = null
-            }
+        val target = activeCheckItem
+        if (granted && target != null) {
+            startRecordingFor(target)
         } else if (!granted) {
+            activeCheckItem = null
             checkError = "Microphone access is required to check your pronunciation."
         }
     }
@@ -167,6 +211,8 @@ fun SpeechGuideScreen(
                 LanguageSelectorRow(
                     selectedLanguage = selectedLanguage,
                     onSelectLanguage = {
+                        recorder.cancel()
+                        activeCheckItem = null
                         activeEval = null
                         checkError = null
                         onSelectLanguage(it)
@@ -332,39 +378,14 @@ fun SpeechGuideScreen(
                                         activeCheckItem = item
                                         micLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                     } else if (isThisRecording) {
-                                        scope.launch {
-                                            evaluatingId = item.id
-                                            try {
-                                                val wav = recorder.stopAndGetWav()
-                                                if (wav.size <= 44) {
-                                                    checkError = "No speech detected—hold slightly longer while speaking."
-                                                } else {
-                                                    val res = aiRepository.evaluateSpokenAudio(
-                                                        wavBytes = wav,
-                                                        expectedPhrase = item.exampleWord,
-                                                        language = selectedLanguage
-                                                    )
-                                                    activeEval = item.id to res
-                                                }
-                                            } catch (e: Exception) {
-                                                checkError = e.localizedMessage ?: "Pronunciation check failed."
-                                            } finally {
-                                                evaluatingId = null
-                                                activeCheckItem = null
-                                            }
-                                        }
+                                        stopAndGrade(item)
                                     } else {
-                                        if (isRecording) recorder.cancel()
-                                        activeCheckItem = item
-                                        if (!recorder.start(scope)) {
-                                            checkError = "Microphone unavailable right now. Close other apps using the mic and try again."
-                                            activeCheckItem = null
-                                        }
+                                        startRecordingFor(item)
                                     }
                                 },
                                 enabled = evaluatingId == null && (!isRecording || isThisRecording),
                                 containerColor = if (isThisRecording) palette.danger else palette.aiAccent,
-                                contentColor = palette.onLanguageAccent,
+                                contentColor = if (isThisRecording) palette.onDanger else palette.onAiAccent,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                                 modifier = Modifier
                                     .weight(1f)
@@ -373,7 +394,7 @@ fun SpeechGuideScreen(
                                 if (isThisEvaluating) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(15.dp),
-                                        color = palette.onLanguageAccent,
+                                        color = if (isThisRecording) palette.onDanger else palette.onAiAccent,
                                         strokeWidth = 2.dp
                                     )
                                 } else {

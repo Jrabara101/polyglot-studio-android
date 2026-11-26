@@ -116,18 +116,6 @@ fun VoiceQuizGameScreen(
     var roundKey by remember(language, difficulty) { mutableIntStateOf(0) }
     var errorText by remember(roundKey, language, difficulty) { mutableStateOf<String?>(null) }
 
-    val micPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasMicPermission = granted
-        permissionDeniedNote = !granted
-        if (granted) {
-            if (!recorder.start(scope)) {
-                errorText = "Microphone unavailable right now. Close other apps using the mic and try again."
-            }
-        }
-    }
-
     val challenges = remember(language, difficulty, roundKey) {
         CuratedContent.voiceChallenges(language, difficulty)
     }
@@ -138,6 +126,57 @@ fun VoiceQuizGameScreen(
         mutableStateOf<VoiceEvaluation?>(null)
     }
     var isEvaluating by remember(roundKey, language, difficulty) { mutableStateOf(false) }
+
+    fun stopAndGradeCurrentPhrase() {
+        if (isEvaluating) return
+        val targetIndex = currentIndex
+        val challenge = challenges.getOrNull(targetIndex) ?: return
+        scope.launch {
+            isEvaluating = true
+            try {
+                val wavBytes = recorder.stopAndGetWav()
+                if (wavBytes.size <= 44) {
+                    errorText = "No speech captured. Hold for a second while speaking and try again."
+                } else {
+                    val res = aiRepository.evaluateSpokenAudio(
+                        wavBytes = wavBytes,
+                        expectedPhrase = challenge.targetPhrase,
+                        language = language
+                    )
+                    evaluation = res
+                    val prev = gradedScores[targetIndex]
+                    gradedScores[targetIndex] = if (prev == null) res.accuracyScore else maxOf(prev, res.accuracyScore)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorText = e.localizedMessage?.takeIf { it.isNotBlank() } ?: "Could not grade voice recording."
+            } finally {
+                isEvaluating = false
+            }
+        }
+    }
+
+    fun startRecordingPhrase() {
+        val started = recorder.start(
+            scope = scope,
+            onAutoStop = { stopAndGradeCurrentPhrase() },
+            onError = { msg -> errorText = msg }
+        )
+        if (!started) {
+            errorText = "Microphone unavailable right now. Close other apps using the mic and try again."
+        }
+    }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasMicPermission = granted
+        permissionDeniedNote = !granted
+        if (granted) {
+            startRecordingPhrase()
+        }
+    }
     var savedThisPrompt by remember(roundKey, language, difficulty, currentIndex) { mutableStateOf(false) }
     var startTimeMs by remember(roundKey, language, difficulty) { mutableLongStateOf(System.currentTimeMillis()) }
     var saveState by remember(roundKey, language, difficulty) { mutableStateOf(CompletionSaveState.Idle) }
@@ -275,7 +314,8 @@ fun VoiceQuizGameScreen(
                                             ).onSuccess {
                                                 savedThisPrompt = true
                                             }.onFailure { err ->
-                                                errorText = err.localizedMessage ?: "Couldn't save phrase."
+                                                errorText = err.localizedMessage?.takeIf { it.isNotBlank() }
+                                                    ?: "Couldn't save phrase."
                                             }
                                         }
                                     },
@@ -452,43 +492,21 @@ fun VoiceQuizGameScreen(
                                 }
                             }
 
+                            val recordContentColor = if (isRecording) palette.onDanger else MaterialTheme.colorScheme.onPrimary
                             TactileButton(
                                 onClick = {
                                     errorText = null
                                     if (!hasMicPermission) {
                                         micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                     } else if (isRecording) {
-                                        scope.launch {
-                                            isEvaluating = true
-                                            try {
-                                                val wavBytes = recorder.stopAndGetWav()
-                                                if (wavBytes.size <= 44) {
-                                                    errorText = "No speech captured. Hold for a second while speaking and try again."
-                                                } else {
-                                                    val res = aiRepository.evaluateSpokenAudio(
-                                                        wavBytes = wavBytes,
-                                                        expectedPhrase = currentChallenge.targetPhrase,
-                                                        language = language
-                                                    )
-                                                    evaluation = res
-                                                    val prev = gradedScores[currentIndex]
-                                                    gradedScores[currentIndex] = if (prev == null) res.accuracyScore else maxOf(prev, res.accuracyScore)
-                                                }
-                                            } catch (e: Exception) {
-                                                errorText = e.localizedMessage ?: "Could not grade voice recording."
-                                            } finally {
-                                                isEvaluating = false
-                                            }
-                                        }
+                                        stopAndGradeCurrentPhrase()
                                     } else {
-                                        if (!recorder.start(scope)) {
-                                            errorText = "Microphone unavailable right now. Close other apps using the mic and try again."
-                                        }
+                                        startRecordingPhrase()
                                     }
                                 },
                                 enabled = !isEvaluating,
                                 containerColor = if (isRecording) palette.danger else MaterialTheme.colorScheme.primary,
-                                contentColor = palette.onLanguageAccent,
+                                contentColor = recordContentColor,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("voice_record_toggle_button")
@@ -496,7 +514,7 @@ fun VoiceQuizGameScreen(
                                 if (isEvaluating) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp),
-                                        color = palette.onLanguageAccent,
+                                        color = recordContentColor,
                                         strokeWidth = 2.5.dp
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -504,7 +522,7 @@ fun VoiceQuizGameScreen(
                                 } else {
                                     Surface(
                                         shape = CircleShape,
-                                        color = palette.onLanguageAccent.copy(alpha = 0.2f),
+                                        color = recordContentColor.copy(alpha = 0.2f),
                                         modifier = Modifier.size(28.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
@@ -617,7 +635,7 @@ fun VoiceQuizGameScreen(
                             },
                             enabled = !isRecording && !isEvaluating,
                             containerColor = if (evaluation != null) palette.success else palette.subtleSurface,
-                            contentColor = if (evaluation != null) palette.onLanguageAccent else MaterialTheme.colorScheme.onSurface,
+                            contentColor = if (evaluation != null) palette.onSuccess else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("voice_next_button")

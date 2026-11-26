@@ -27,6 +27,8 @@ class ThemeContrastTest {
                 assertWcagAa("$mode/${lang.code} aiAccent on aiSoft", palette.aiAccent, palette.aiSoft)
                 assertWcagAa("$mode/${lang.code} onSurface on cardSurface", scheme.onSurface, palette.cardSurface)
                 assertWcagAa("$mode/${lang.code} onSurfaceVariant on subtleSurface", scheme.onSurfaceVariant, palette.subtleSurface)
+                // DifficultySelectorRow selected chip uses surface text on onSurface fill
+                assertWcagAa("$mode/${lang.code} DifficultySelectorRow selected chip", scheme.surface, scheme.onSurface)
             }
         }
     }
