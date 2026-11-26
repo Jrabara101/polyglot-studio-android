@@ -25,10 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.HelpOutline
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +55,7 @@ import com.example.data.content.CuratedContent
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileCard
 import com.example.ui.theme.GoldStreak
@@ -308,7 +306,7 @@ fun CardMatchGameScreen(
                             ) {
                                 if (!isFlipped) {
                                     Icon(
-                                        imageVector = Icons.Rounded.HelpOutline,
+                                        imageVector = StudioIcons.HelpOutline,
                                         contentDescription = "Hidden card",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         modifier = Modifier.size(28.dp)
@@ -388,7 +386,7 @@ fun CardMatchGameScreen(
                                     .testTag("card_speak_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.VolumeUp,
+                                    imageVector = StudioIcons.VolumeUp,
                                     contentDescription = "Hear pronunciation",
                                     tint = if (speakingKey == "inspect_${item.id}") GoldStreak else MaterialTheme.colorScheme.primary
                                 )
@@ -412,7 +410,7 @@ fun CardMatchGameScreen(
                                     .testTag("card_bookmark_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.BookmarkAdd,
+                                    imageVector = StudioIcons.BookmarkAdd,
                                     contentDescription = "Save phrase",
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )

@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -67,6 +64,7 @@ import com.example.ui.studio.StudioHomeScreen
 import com.example.ui.studio.StudioUiState
 import com.example.ui.studio.StudioViewModel
 import com.example.ui.theme.PolyglotStudioTheme
+import com.example.ui.components.StudioIcons
 import com.example.ui.tutor.TutorHubScreen
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -93,9 +91,9 @@ private data class TopTabItem(
 
 private val TOP_TABS = listOf(
     TopTabItem(StudioRoute, R.string.nav_studio, Icons.Rounded.Home, "tab_studio"),
-    TopTabItem(SpeechRoute, R.string.nav_speech, Icons.Rounded.RecordVoiceOver, "tab_speech"),
-    TopTabItem(TutorRoute, R.string.nav_tutor, Icons.Rounded.AutoAwesome, "tab_tutor"),
-    TopTabItem(ProgressRoute, R.string.nav_progress, Icons.Rounded.BarChart, "tab_progress")
+    TopTabItem(SpeechRoute, R.string.nav_speech, StudioIcons.RecordVoiceOver, "tab_speech"),
+    TopTabItem(TutorRoute, R.string.nav_tutor, StudioIcons.AutoAwesome, "tab_tutor"),
+    TopTabItem(ProgressRoute, R.string.nav_progress, StudioIcons.BarChart, "tab_progress")
 )
 
 private class StudioViewModelFactory(

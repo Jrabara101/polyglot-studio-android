@@ -32,12 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.automirrored.rounded.Undo
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.DeleteSweep
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -85,6 +79,7 @@ import com.example.data.content.CuratedContent
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
@@ -501,7 +496,7 @@ private fun PromptCard(item: CalligraphyPromptItem, isSpeaking: Boolean, onSpeak
                     .testTag("calligraphy_speak_button")
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.VolumeUp,
+                    imageVector = StudioIcons.VolumeUp,
                     contentDescription = "Hear character",
                     tint = if (isSpeaking) palette.languageAccent else MaterialTheme.colorScheme.onSurface
                 )
@@ -630,7 +625,7 @@ private fun PadControls(
             modifier = Modifier.testTag("toggle_guide_button")
         ) {
             Icon(
-                if (showGuide) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                if (showGuide) StudioIcons.Visibility else StudioIcons.VisibilityOff,
                 contentDescription = "Toggle guide",
                 modifier = Modifier.size(18.dp)
             )
@@ -645,7 +640,7 @@ private fun PadControls(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
             modifier = Modifier.testTag("undo_stroke_button")
         ) {
-            Icon(Icons.AutoMirrored.Rounded.Undo, contentDescription = "Undo", modifier = Modifier.size(18.dp))
+            Icon(StudioIcons.Undo, contentDescription = "Undo", modifier = Modifier.size(18.dp))
         }
         TactileButton(
             onClick = onClear,
@@ -655,7 +650,7 @@ private fun PadControls(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
             modifier = Modifier.testTag("clear_canvas_button")
         ) {
-            Icon(Icons.Rounded.DeleteSweep, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+            Icon(StudioIcons.DeleteSweep, contentDescription = "Clear", modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.weight(1f))
         TactileButton(
@@ -670,7 +665,7 @@ private fun PadControls(
                 Spacer(Modifier.width(6.dp))
                 Text("Grading…")
             } else {
-                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(StudioIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Check")
             }

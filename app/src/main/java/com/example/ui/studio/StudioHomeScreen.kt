@@ -21,15 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.Brush
-import androidx.compose.material.icons.rounded.Forum
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.Quiz
-import androidx.compose.material.icons.rounded.RecordVoiceOver
-import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +44,7 @@ import com.example.data.model.GameType
 import com.example.data.model.LanguageMastery
 import com.example.data.model.TargetLanguage
 import com.example.data.model.UserProfile
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.DifficultySelectorRow
 import com.example.ui.components.LanguageSelectorRow
 import com.example.ui.components.StudioBadge
@@ -151,7 +143,7 @@ fun StudioHomeScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.LocalFireDepartment,
+                                    imageVector = StudioIcons.LocalFireDepartment,
                                     contentDescription = "Daily Streak",
                                     tint = GoldStreak,
                                     modifier = Modifier.size(16.dp)
@@ -173,7 +165,7 @@ fun StudioHomeScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Bolt,
+                                    imageVector = StudioIcons.Bolt,
                                     contentDescription = "Total XP",
                                     tint = palette.languageAccent,
                                     modifier = Modifier.size(16.dp)
@@ -348,7 +340,7 @@ fun StudioHomeScreen(
                             .testTag("home_open_speech_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.RecordVoiceOver,
+                            imageVector = StudioIcons.RecordVoiceOver,
                             contentDescription = null,
                             tint = palette.languageAccent,
                             modifier = Modifier.size(18.dp)
@@ -365,7 +357,7 @@ fun StudioHomeScreen(
                             .testTag("home_open_tutor_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
+                            imageVector = StudioIcons.AutoAwesome,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -380,9 +372,9 @@ fun StudioHomeScreen(
 }
 
 private fun iconForGame(gameType: GameType): ImageVector = when (gameType) {
-    GameType.CARDS -> Icons.Rounded.Style
-    GameType.CALLIGRAPHY -> Icons.Rounded.Brush
-    GameType.QUIZ -> Icons.Rounded.Quiz
-    GameType.VOICE -> Icons.Rounded.GraphicEq
-    GameType.STORY -> Icons.Rounded.Forum
+    GameType.CARDS -> StudioIcons.Style
+    GameType.CALLIGRAPHY -> StudioIcons.Brush
+    GameType.QUIZ -> StudioIcons.Quiz
+    GameType.VOICE -> StudioIcons.GraphicEq
+    GameType.STORY -> StudioIcons.Forum
 }

@@ -51,7 +51,7 @@ def save_m4a(audio: np.ndarray, out_path: Path) -> None:
         sf.write(str(wav_path), audio, SAMPLE_RATE)
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path),
-             "-c:a", "aac", "-b:a", "48k", "-ac", "1", str(out_path)],
+             "-c:a", "aac", "-b:a", "28k", "-ac", "1", str(out_path)],
             check=True,
         )
 

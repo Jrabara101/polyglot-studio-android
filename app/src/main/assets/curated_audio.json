@@ -1,0 +1,203 @@
+{
+  "japanese": [
+    {
+      "id": "jp_p2",
+      "asset": "audio/curated/japanese/jp_p2.m4a",
+      "texts": [
+        "つき"
+      ]
+    },
+    {
+      "id": "jp_p3",
+      "asset": "audio/curated/japanese/jp_p3.m4a",
+      "texts": [
+        "ふじさん"
+      ]
+    },
+    {
+      "id": "jp_p4",
+      "asset": "audio/curated/japanese/jp_p4.m4a",
+      "texts": [
+        "にほん"
+      ]
+    },
+    {
+      "id": "jp_p5",
+      "asset": "audio/curated/japanese/jp_p5.m4a",
+      "texts": [
+        "きって"
+      ]
+    },
+    {
+      "id": "jv_2",
+      "asset": "audio/curated/japanese/jv_2.m4a",
+      "texts": [
+        "お水をください",
+        "おみずをください"
+      ]
+    },
+    {
+      "id": "jv_3",
+      "asset": "audio/curated/japanese/jv_3.m4a",
+      "texts": [
+        "これはいくらですか"
+      ]
+    },
+    {
+      "id": "jv_4",
+      "asset": "audio/curated/japanese/jv_4.m4a",
+      "texts": [
+        "駅はどこですか",
+        "えきはどこですか"
+      ]
+    },
+    {
+      "id": "jv_5",
+      "asset": "audio/curated/japanese/jv_5.m4a",
+      "texts": [
+        "日本語を勉強しています",
+        "にほんごをべんきょうしています"
+      ]
+    },
+    {
+      "id": "jv_6",
+      "asset": "audio/curated/japanese/jv_6.m4a",
+      "texts": [
+        "またお会いできて嬉しいです",
+        "またおあいできてうれしいです"
+      ]
+    }
+  ],
+  "spanish": [
+    {
+      "id": "es_p2",
+      "asset": "audio/curated/spanish/es_p2.m4a",
+      "texts": [
+        "perro"
+      ]
+    },
+    {
+      "id": "es_p3",
+      "asset": "audio/curated/spanish/es_p3.m4a",
+      "texts": [
+        "jardín"
+      ]
+    },
+    {
+      "id": "es_p4",
+      "asset": "audio/curated/spanish/es_p4.m4a",
+      "texts": [
+        "amigo"
+      ]
+    },
+    {
+      "id": "es_p5",
+      "asset": "audio/curated/spanish/es_p5.m4a",
+      "texts": [
+        "llamar"
+      ]
+    },
+    {
+      "id": "sv_1",
+      "asset": "audio/curated/spanish/sv_1.m4a",
+      "texts": [
+        "Buenos días, ¿cómo estás?"
+      ]
+    },
+    {
+      "id": "sv_2",
+      "asset": "audio/curated/spanish/sv_2.m4a",
+      "texts": [
+        "Una mesa para dos, por favor"
+      ]
+    },
+    {
+      "id": "sv_4",
+      "asset": "audio/curated/spanish/sv_4.m4a",
+      "texts": [
+        "¿Dónde está la estación de tren?"
+      ]
+    },
+    {
+      "id": "sv_5",
+      "asset": "audio/curated/spanish/sv_5.m4a",
+      "texts": [
+        "Quisiera probar el plato del día"
+      ]
+    },
+    {
+      "id": "sv_6",
+      "asset": "audio/curated/spanish/sv_6.m4a",
+      "texts": [
+        "El perro corre rápido por el parque"
+      ]
+    }
+  ],
+  "french": [
+    {
+      "id": "fr_p2",
+      "asset": "audio/curated/french/fr_p2.m4a",
+      "texts": [
+        "tu, rue",
+        "tu / rue"
+      ]
+    },
+    {
+      "id": "fr_p3",
+      "asset": "audio/curated/french/fr_p3.m4a",
+      "texts": [
+        "pain, vin",
+        "pain / vin"
+      ]
+    },
+    {
+      "id": "fr_p4",
+      "asset": "audio/curated/french/fr_p4.m4a",
+      "texts": [
+        "fleur"
+      ]
+    },
+    {
+      "id": "fr_p5",
+      "asset": "audio/curated/french/fr_p5.m4a",
+      "texts": [
+        "les amis"
+      ]
+    },
+    {
+      "id": "fv_1",
+      "asset": "audio/curated/french/fv_1.m4a",
+      "texts": [
+        "Bonjour, je voudrais un café"
+      ]
+    },
+    {
+      "id": "fv_2",
+      "asset": "audio/curated/french/fv_2.m4a",
+      "texts": [
+        "Merci beaucoup, bonne journée"
+      ]
+    },
+    {
+      "id": "fv_4",
+      "asset": "audio/curated/french/fv_4.m4a",
+      "texts": [
+        "Je ne comprends pas très bien"
+      ]
+    },
+    {
+      "id": "fv_5",
+      "asset": "audio/curated/french/fv_5.m4a",
+      "texts": [
+        "L'addition, s'il vous plaît"
+      ]
+    },
+    {
+      "id": "fv_6",
+      "asset": "audio/curated/french/fv_6.m4a",
+      "texts": [
+        "Il pleut doucement sur les rues de Paris"
+      ]
+    }
+  ]
+}

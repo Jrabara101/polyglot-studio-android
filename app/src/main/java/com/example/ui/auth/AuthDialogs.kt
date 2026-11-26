@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -42,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.example.auth.MINIMUM_AGE
 import com.example.auth.ageFromBirthdayMillis
 import com.example.auth.validateUsername
+import com.example.ui.components.StudioIcons
 import com.example.ui.theme.LocalStudioPalette
 import java.text.DateFormat
 import java.util.Calendar
@@ -119,7 +118,7 @@ fun CreateAccountDialog(
                     placeholder = { Text("Select your birthday") },
                     trailingIcon = {
                         IconButton(onClick = { showDatePicker = true }, enabled = !isSubmitting) {
-                            Icon(Icons.Rounded.CalendarMonth, contentDescription = "Pick birthday")
+                            Icon(StudioIcons.CalendarMonth, contentDescription = "Pick birthday")
                         }
                     },
                     supportingText = { Text("Used only to confirm your age. Not stored.") },

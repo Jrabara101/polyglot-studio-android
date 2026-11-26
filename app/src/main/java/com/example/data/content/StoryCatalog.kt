@@ -5,7 +5,11 @@ import android.util.Log
 import com.example.R
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.util.concurrent.ConcurrentHashMap
 
 data class StoryChoice(
     val text: String,
@@ -39,18 +43,22 @@ data class StoryDefinition(
 )
 
 /**
- * Bundled offline branching stories loaded lazily from assets/stories/<language>.json,
+ * Bundled offline branching stories loaded per-language from assets/stories/<language>.json,
  * paired with pre-generated Kokoro pronunciation clips in
  * assets/audio/stories/<language>/<storyId>_<nodeId>.m4a.
+ *
+ * Call [init] once with the application context and [preloadAsync] on [Dispatchers.IO] so
+ * UI screens never block the main thread parsing JSON or scanning assets.
  */
 object StoryCatalog {
     private const val TAG = "StoryCatalog"
 
     @Volatile private var appContext: Context? = null
-    @Volatile private var data: Loaded? = null
+    private val languageCache = ConcurrentHashMap<TargetLanguage, LanguageStories>()
+    private val languageLocks = TargetLanguage.entries.associateWith { Any() }
 
-    private class Loaded(
-        val stories: Map<TargetLanguage, List<StoryDefinition>>,
+    private class LanguageStories(
+        val stories: List<StoryDefinition>,
         /** "<language code>|<storyId>|<nodeId>" -> asset path */
         val nodeAudioIndex: Map<String, String>,
         /** "<language code>|<normalized npcText/npcReading>" -> asset path */
@@ -61,17 +69,26 @@ object StoryCatalog {
         appContext = context.applicationContext
     }
 
+    /** Warms all language story catalogs on a background dispatcher. */
+    suspend fun preloadAsync(dispatcher: CoroutineDispatcher = Dispatchers.IO) {
+        withContext(dispatcher) {
+            for (language in TargetLanguage.entries) {
+                loaded(language)
+            }
+        }
+    }
+
     fun stories(language: TargetLanguage): List<StoryDefinition> =
-        loaded()?.stories?.get(language).orEmpty()
+        loaded(language)?.stories.orEmpty()
 
     fun stories(language: TargetLanguage, level: DifficultyLevel): List<StoryDefinition> =
         stories(language).filter { it.level == level }
 
     fun audioAssetFor(language: TargetLanguage, storyId: String, nodeId: String): String? =
-        loaded()?.nodeAudioIndex?.get("${language.code}|$storyId|$nodeId")
+        loaded(language)?.nodeAudioIndex?.get("${language.code}|$storyId|$nodeId")
 
     fun audioAssetFor(language: TargetLanguage, text: String): String? =
-        loaded()?.textAudioIndex?.get(Lexicon.indexKey(language, text))
+        loaded(language)?.textAudioIndex?.get(Lexicon.indexKey(language, text))
 
     /** Resolves a speaker key like "story_node_<storyId>|<nodeId>" to its exact bundled clip. */
     fun audioAssetForSpeakerKey(language: TargetLanguage, key: String): String? {
@@ -84,53 +101,57 @@ object StoryCatalog {
 
     fun speakerKey(storyId: String, nodeId: String): String = "$SPEAKER_KEY_PREFIX$storyId|$nodeId"
 
-    private fun loaded(): Loaded? {
-        data?.let { return it }
+    internal fun resetForTest() {
+        languageCache.clear()
+    }
+
+    internal fun loadedLanguagesForTest(): Set<TargetLanguage> = languageCache.keys.toSet()
+
+    private fun loaded(language: TargetLanguage): LanguageStories? {
+        languageCache[language]?.let { return it }
         val context = appContext ?: return null
-        return synchronized(this) {
-            data ?: load(context).also { data = it }
+        val lock = languageLocks.getValue(language)
+        return synchronized(lock) {
+            languageCache[language] ?: loadLanguage(context, language).also {
+                languageCache[language] = it
+            }
         }
     }
 
-    private fun load(context: Context): Loaded {
-        val storiesByLang = mutableMapOf<TargetLanguage, List<StoryDefinition>>()
+    private fun loadLanguage(context: Context, language: TargetLanguage): LanguageStories {
+        val list = try {
+            val json = context.assets.open("stories/${language.code}.json")
+                .bufferedReader(Charsets.UTF_8).use { it.readText() }
+            parse(json, language)
+        } catch (e: Exception) {
+            Log.w(TAG, "No bundled stories for ${language.code}", e)
+            emptyList()
+        }
+
         val nodeAudioIndex = mutableMapOf<String, String>()
         val textAudioIndex = mutableMapOf<String, String>()
+        val clips = try {
+            context.assets.list("audio/stories/${language.code}")?.toSet().orEmpty()
+        } catch (_: Exception) {
+            emptySet()
+        }
 
-        for (language in TargetLanguage.entries) {
-            val list = try {
-                val json = context.assets.open("stories/${language.code}.json")
-                    .bufferedReader(Charsets.UTF_8).use { it.readText() }
-                parse(json, language)
-            } catch (e: Exception) {
-                Log.w(TAG, "No bundled stories for ${language.code}", e)
-                emptyList()
-            }
-            storiesByLang[language] = list
-
-            val clips = try {
-                context.assets.list("audio/stories/${language.code}")?.toSet().orEmpty()
-            } catch (_: Exception) {
-                emptySet()
-            }
-
-            for (story in list) {
-                for (node in story.nodes.values) {
-                    val fileName = "${story.id}_${node.id}.m4a"
-                    if (fileName !in clips) continue
-                    val path = "audio/stories/${language.code}/$fileName"
-                    nodeAudioIndex["${language.code}|${story.id}|${node.id}"] = path
-                    if (node.npcText.isNotBlank()) {
-                        textAudioIndex.putIfAbsent(Lexicon.indexKey(language, node.npcText), path)
-                    }
-                    if (node.npcReading.isNotBlank()) {
-                        textAudioIndex.putIfAbsent(Lexicon.indexKey(language, node.npcReading), path)
-                    }
+        for (story in list) {
+            for (node in story.nodes.values) {
+                val fileName = "${story.id}_${node.id}.m4a"
+                if (fileName !in clips) continue
+                val path = "audio/stories/${language.code}/$fileName"
+                nodeAudioIndex["${language.code}|${story.id}|${node.id}"] = path
+                if (node.npcText.isNotBlank()) {
+                    textAudioIndex.putIfAbsent(Lexicon.indexKey(language, node.npcText), path)
+                }
+                if (node.npcReading.isNotBlank()) {
+                    textAudioIndex.putIfAbsent(Lexicon.indexKey(language, node.npcReading), path)
                 }
             }
         }
-        Log.i(TAG, "Loaded ${storiesByLang.values.sumOf { it.size }} stories, ${nodeAudioIndex.size} clips")
-        return Loaded(storiesByLang, nodeAudioIndex, textAudioIndex)
+        Log.i(TAG, "Loaded ${language.code}: ${list.size} stories, ${nodeAudioIndex.size} clips")
+        return LanguageStories(list, nodeAudioIndex, textAudioIndex)
     }
 
     internal fun parse(json: String, language: TargetLanguage): List<StoryDefinition> {
@@ -160,7 +181,7 @@ object StoryCatalog {
                     npcText = nObj.getString("npcText"),
                     npcReading = nObj.optString("npcReading"),
                     npcPhonetic = nObj.optString("npcPhonetic"),
-                    npcEnglish = nObj.getString("npcEnglish"),
+                    npcEnglish = nObj.optString("npcEnglish"),
                     choices = choices
                 )
                 nodesMap[node.id] = node

@@ -13,9 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
@@ -123,7 +122,7 @@ fun GameCompletionCard(
                 border = BorderStroke(1.5.dp, palette.success)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.EmojiEvents,
+                    imageVector = StudioIcons.EmojiEvents,
                     contentDescription = "Round Complete",
                     tint = palette.success,
                     modifier = Modifier
@@ -191,7 +190,7 @@ fun GameCompletionCard(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Rounded.Bolt,
+                                StudioIcons.Bolt,
                                 contentDescription = null,
                                 tint = GoldStreak,
                                 modifier = Modifier.size(20.dp)

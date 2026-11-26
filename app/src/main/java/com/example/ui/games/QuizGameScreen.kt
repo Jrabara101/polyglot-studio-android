@@ -23,10 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Cancel
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +52,7 @@ import com.example.data.content.CuratedContent
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
@@ -220,7 +218,7 @@ fun QuizGameScreen(
                                 Spacer(Modifier.width(6.dp))
                                 Text("Generating…", style = MaterialTheme.typography.labelLarge)
                             } else {
-                                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(StudioIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Fresh AI Set", style = MaterialTheme.typography.labelLarge)
                             }
@@ -296,7 +294,7 @@ fun QuizGameScreen(
                                         .testTag("quiz_speak_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.VolumeUp,
+                                        imageVector = StudioIcons.VolumeUp,
                                         contentDescription = "Hear sentence",
                                         tint = if (speakingKey == "quiz_${question.id}") palette.languageAccent else MaterialTheme.colorScheme.onSurface
                                     )
@@ -362,7 +360,7 @@ fun QuizGameScreen(
                                 if (isAnswered && isCorrect) {
                                     Icon(Icons.Rounded.CheckCircle, contentDescription = "Correct", tint = palette.success)
                                 } else if (isAnswered && isSelected) {
-                                    Icon(Icons.Rounded.Cancel, contentDescription = "Incorrect", tint = palette.danger)
+                                    Icon(StudioIcons.Cancel, contentDescription = "Incorrect", tint = palette.danger)
                                 }
                             }
                         }
@@ -422,7 +420,7 @@ fun QuizGameScreen(
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                                             modifier = Modifier.testTag("ask_why_button")
                                         ) {
-                                            Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Icon(StudioIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(Modifier.width(4.dp))
                                             Text(if (isLoadingDeep) "Thinking…" else "Ask Gemini Why")
                                         }

@@ -22,13 +22,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Brush
-import androidx.compose.material.icons.rounded.Forum
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Quiz
-import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +54,7 @@ import com.example.auth.attemptAutoSignIn
 import com.example.auth.onGoogleSignInClicked
 import com.example.auth.onCreateAccountClicked
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
@@ -175,12 +169,12 @@ fun AuthScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            FeatureChip(Icons.Rounded.Style, "Card Match")
-                            FeatureChip(Icons.Rounded.Brush, "Calligraphy Vision")
-                            FeatureChip(Icons.Rounded.Quiz, "Syntax Quiz")
-                            FeatureChip(Icons.Rounded.GraphicEq, "Voice Arena")
-                            FeatureChip(Icons.Rounded.Forum, "Story Café")
-                            FeatureChip(Icons.Rounded.AutoAwesome, "Gemini Live Tutor")
+                            FeatureChip(StudioIcons.Style, "Card Match")
+                            FeatureChip(StudioIcons.Brush, "Calligraphy Vision")
+                            FeatureChip(StudioIcons.Quiz, "Syntax Quiz")
+                            FeatureChip(StudioIcons.GraphicEq, "Voice Arena")
+                            FeatureChip(StudioIcons.Forum, "Story Café")
+                            FeatureChip(StudioIcons.AutoAwesome, "Gemini Live Tutor")
                         }
                     }
                 }

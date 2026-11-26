@@ -35,12 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.CallEnd
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +68,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.ai.FirebaseAiRepository
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.LanguageSelectorRow
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
@@ -259,7 +255,7 @@ fun TutorHubScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
+                            imageVector = StudioIcons.AutoAwesome,
                             contentDescription = null,
                             tint = palette.aiAccent
                         )
@@ -334,7 +330,7 @@ fun TutorHubScreen(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            imageVector = if (isLiveActive) Icons.Rounded.GraphicEq else Icons.Rounded.Mic,
+                                            imageVector = if (isLiveActive) StudioIcons.GraphicEq else StudioIcons.Mic,
                                             contentDescription = null,
                                             tint = if (isLiveActive) Color.White else palette.aiAccent,
                                             modifier = Modifier.size(20.dp)
@@ -393,7 +389,7 @@ fun TutorHubScreen(
                                     )
                                 } else {
                                     Icon(
-                                        imageVector = if (isLiveActive) Icons.Rounded.CallEnd else Icons.Rounded.Mic,
+                                        imageVector = if (isLiveActive) StudioIcons.CallEnd else StudioIcons.Mic,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -501,7 +497,7 @@ fun TutorHubScreen(
                                                 .testTag("tutor_speak_$idx")
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Rounded.VolumeUp,
+                                                imageVector = StudioIcons.VolumeUp,
                                                 contentDescription = "Listen to tutor reply",
                                                 tint = if (speakingKey == "tutor_$idx") GoldStreak else palette.aiAccent,
                                                 modifier = Modifier.size(18.dp)

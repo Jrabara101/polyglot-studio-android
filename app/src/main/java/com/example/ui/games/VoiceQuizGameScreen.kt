@@ -28,12 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.BookmarkAdd
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.SlowMotionVideo
-import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,6 +66,7 @@ import com.example.data.content.CuratedContent
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
@@ -289,7 +284,7 @@ fun VoiceQuizGameScreen(
                                         .testTag("voice_bookmark_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.BookmarkAdd,
+                                        imageVector = StudioIcons.BookmarkAdd,
                                         contentDescription = "Save phrase to phrasebook",
                                         tint = if (savedThisPrompt) palette.success else MaterialTheme.colorScheme.onSurface
                                     )
@@ -344,7 +339,7 @@ fun VoiceQuizGameScreen(
                                         .testTag("voice_listen_normal_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.VolumeUp,
+                                        imageVector = StudioIcons.VolumeUp,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -370,7 +365,7 @@ fun VoiceQuizGameScreen(
                                         .testTag("voice_listen_slow_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.SlowMotionVideo,
+                                        imageVector = StudioIcons.SlowMotionVideo,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -514,7 +509,7 @@ fun VoiceQuizGameScreen(
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
-                                                imageVector = if (isRecording) Icons.Rounded.Stop else Icons.Rounded.Mic,
+                                                imageVector = if (isRecording) StudioIcons.Stop else StudioIcons.Mic,
                                                 contentDescription = if (isRecording) "Stop recording" else "Start recording",
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -560,7 +555,7 @@ fun VoiceQuizGameScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = Icons.Rounded.GraphicEq,
+                                            imageVector = StudioIcons.GraphicEq,
                                             contentDescription = null,
                                             tint = if (good) palette.success else palette.languageAccent
                                         )

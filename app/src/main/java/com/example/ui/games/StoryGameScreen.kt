@@ -26,13 +26,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,6 +64,7 @@ import com.example.data.content.StoryNode
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.GameType
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
@@ -389,7 +385,7 @@ fun StoryGameScreen(
                             .testTag("story_prev_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.ChevronLeft,
+                            imageVector = StudioIcons.ChevronLeft,
                             contentDescription = "Previous story"
                         )
                     }
@@ -413,7 +409,7 @@ fun StoryGameScreen(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.MenuBook,
+                                imageVector = StudioIcons.MenuBook,
                                 contentDescription = null,
                                 tint = palette.languageAccent,
                                 modifier = Modifier.size(18.dp)
@@ -447,7 +443,7 @@ fun StoryGameScreen(
                             .testTag("story_next_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.ChevronRight,
+                            imageVector = StudioIcons.ChevronRight,
                             contentDescription = "Next story"
                         )
                     }
@@ -555,7 +551,7 @@ fun StoryGameScreen(
                                                 .testTag("story_speak_$index")
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Rounded.VolumeUp,
+                                                imageVector = StudioIcons.VolumeUp,
                                                 contentDescription = "Hear dialogue line",
                                                 tint = if (speakingKey == speakerKey) GoldStreak else MaterialTheme.colorScheme.primary
                                             )
@@ -579,7 +575,7 @@ fun StoryGameScreen(
                                                 .testTag("story_bookmark_$index")
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Rounded.BookmarkAdd,
+                                                imageVector = StudioIcons.BookmarkAdd,
                                                 contentDescription = "Save dialogue phrase",
                                                 tint = if (isSaved) palette.success else MaterialTheme.colorScheme.onSurface
                                             )

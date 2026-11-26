@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
+import com.example.ui.speech.speechExampleText
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -67,5 +69,42 @@ class LexiconTest {
     @Test
     fun `unknown text has no clip`() {
         assertEquals(null, Lexicon.audioAssetFor(TargetLanguage.JAPANESE, "これは辞書にない文です"))
+    }
+
+    @Test
+    fun `per language lookup loads lazily and preloadAsync loads all languages`() {
+        Lexicon.resetForTest()
+        Lexicon.init(ApplicationProvider.getApplicationContext<Context>())
+
+        assertTrue(Lexicon.entries(TargetLanguage.JAPANESE).isNotEmpty())
+        assertEquals(setOf(TargetLanguage.JAPANESE), Lexicon.loadedLanguagesForTest())
+
+        runBlocking { Lexicon.preloadAsync() }
+        assertEquals(TargetLanguage.entries.toSet(), Lexicon.loadedLanguagesForTest())
+    }
+
+    @Test
+    fun `every speech guide example and voice challenge has a bundled clip`() {
+        for (language in TargetLanguage.entries) {
+            for (item in CuratedContent.phonemesFor(language)) {
+                val spoken = item.speechExampleText()
+                assertNotNull(
+                    "Missing Speech Guide clip for ${language.code}: '${item.exampleWord}' (spoken: '$spoken')",
+                    Lexicon.audioAssetFor(language, spoken)
+                )
+                assertNotNull(
+                    "Missing raw Speech Guide clip lookup for ${language.code}: '${item.exampleWord}'",
+                    Lexicon.audioAssetFor(language, item.exampleWord)
+                )
+            }
+            for (difficulty in DifficultyLevel.entries) {
+                for (challenge in CuratedContent.voiceChallenges(language, difficulty)) {
+                    assertNotNull(
+                        "Missing Voice Arena clip for ${language.code}/${difficulty.code}: '${challenge.targetPhrase}'",
+                        Lexicon.audioAssetFor(language, challenge.targetPhrase)
+                    )
+                }
+            }
+        }
     }
 }

@@ -18,14 +18,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Logout
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +39,7 @@ import com.example.data.model.LanguageMastery
 import com.example.data.model.SavedPhrase
 import com.example.data.model.TargetLanguage
 import com.example.data.model.UserProfile
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.LanguageSelectorRow
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
@@ -117,7 +110,7 @@ fun ProgressScreen(
                         modifier = Modifier.testTag("sign_out_button")
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Logout,
+                            imageVector = StudioIcons.Logout,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -136,7 +129,7 @@ fun ProgressScreen(
                         Column(horizontalAlignment = Alignment.Start) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Bolt,
+                                    imageVector = StudioIcons.Bolt,
                                     contentDescription = null,
                                     tint = palette.languageAccent
                                 )
@@ -155,7 +148,7 @@ fun ProgressScreen(
                         Column(horizontalAlignment = Alignment.Start) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Rounded.LocalFireDepartment,
+                                    imageVector = StudioIcons.LocalFireDepartment,
                                     contentDescription = null,
                                     tint = GoldStreak
                                 )
@@ -241,7 +234,7 @@ fun ProgressScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Rounded.Bookmark,
+                        imageVector = StudioIcons.Bookmark,
                         contentDescription = null,
                         tint = palette.languageAccent,
                         modifier = Modifier.size(20.dp)
@@ -308,7 +301,7 @@ fun ProgressScreen(
                                     .testTag("phrasebook_speak_${phrase.id}")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.VolumeUp,
+                                    imageVector = StudioIcons.VolumeUp,
                                     contentDescription = "Speak saved phrase",
                                     tint = if (speakingKey == "pb_${phrase.id}") GoldStreak else MaterialTheme.colorScheme.primary
                                 )
@@ -320,7 +313,7 @@ fun ProgressScreen(
                                     .testTag("phrasebook_delete_${phrase.id}")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.DeleteOutline,
+                                    imageVector = StudioIcons.DeleteOutline,
                                     contentDescription = "Delete saved phrase",
                                     tint = palette.danger
                                 )
@@ -333,7 +326,7 @@ fun ProgressScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Rounded.History,
+                        imageVector = StudioIcons.History,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)

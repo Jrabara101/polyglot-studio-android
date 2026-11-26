@@ -23,14 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.RecordVoiceOver
-import androidx.compose.material.icons.rounded.SlowMotionVideo
-import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +52,7 @@ import com.example.data.ai.VoiceEvaluation
 import com.example.data.content.CuratedContent
 import com.example.data.content.PhonemeGuideItem
 import com.example.data.model.TargetLanguage
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.LanguageSelectorRow
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
@@ -149,7 +143,7 @@ fun SpeechGuideScreen(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Rounded.RecordVoiceOver,
+                                imageVector = StudioIcons.RecordVoiceOver,
                                 contentDescription = null,
                                 tint = palette.languageAccent
                             )
@@ -264,7 +258,7 @@ fun SpeechGuideScreen(
                                     .testTag("phoneme_bookmark_${item.id}")
                             ) {
                                 Icon(
-                                    imageVector = if (isSaved) Icons.Rounded.Check else Icons.Rounded.BookmarkAdd,
+                                    imageVector = if (isSaved) Icons.Rounded.Check else StudioIcons.BookmarkAdd,
                                     contentDescription = "Save example word",
                                     tint = if (isSaved) palette.success else MaterialTheme.colorScheme.onSurface
                                 )
@@ -302,7 +296,7 @@ fun SpeechGuideScreen(
                                     .testTag("phoneme_play_${item.id}")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.VolumeUp,
+                                    imageVector = StudioIcons.VolumeUp,
                                     contentDescription = null,
                                     tint = if (speakingKey == "sg_norm_${item.id}") GoldStreak else palette.languageAccent,
                                     modifier = Modifier.size(16.dp)
@@ -323,7 +317,7 @@ fun SpeechGuideScreen(
                                     .testTag("phoneme_slow_${item.id}")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.SlowMotionVideo,
+                                    imageVector = StudioIcons.SlowMotionVideo,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -384,7 +378,7 @@ fun SpeechGuideScreen(
                                     )
                                 } else {
                                     Icon(
-                                        imageVector = if (isThisRecording) Icons.Rounded.Stop else Icons.Rounded.Mic,
+                                        imageVector = if (isThisRecording) StudioIcons.Stop else StudioIcons.Mic,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -414,7 +408,7 @@ fun SpeechGuideScreen(
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(
-                                                imageVector = Icons.Rounded.GraphicEq,
+                                                imageVector = StudioIcons.GraphicEq,
                                                 contentDescription = null,
                                                 tint = if (good) palette.success else palette.languageAccent,
                                                 modifier = Modifier.size(16.dp)

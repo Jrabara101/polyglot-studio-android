@@ -23,6 +23,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 sealed interface StudioUiState<out T> {
@@ -177,9 +179,11 @@ class StudioViewModel(
         ttsJob = viewModelScope.launch {
             _speakingKey.value = key
             try {
-                val clip = StoryCatalog.audioAssetForSpeakerKey(language, key)
-                    ?: Lexicon.audioAssetFor(language, text)
-                    ?: StoryCatalog.audioAssetFor(language, text)
+                val clip = withContext(Dispatchers.IO) {
+                    StoryCatalog.audioAssetForSpeakerKey(language, key)
+                        ?: Lexicon.audioAssetFor(language, text)
+                        ?: StoryCatalog.audioAssetFor(language, text)
+                }
                 if (clip != null && clipPlayer.play(clip, slow)) return@launch
 
                 // Story Café is 100% offline: never block on Gemini TTS if a bundled clip fails.
@@ -293,7 +297,7 @@ class StudioViewModel(
 
     private fun TargetLanguage.locale(): Locale = when (this) {
         TargetLanguage.JAPANESE -> Locale.JAPAN
-        TargetLanguage.SPANISH -> Locale("es", "ES")
+        TargetLanguage.SPANISH -> Locale.forLanguageTag("es-ES")
         TargetLanguage.FRENCH -> Locale.FRANCE
     }
 

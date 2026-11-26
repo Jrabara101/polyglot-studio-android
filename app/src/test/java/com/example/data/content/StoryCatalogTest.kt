@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -95,6 +96,18 @@ class StoryCatalogTest {
             }
         }
         assertEquals("Total Kokoro story clips", 600, clipCount)
+    }
+
+    @Test
+    fun per_language_access_is_lazy_and_preloadAsync_warms_all_languages() {
+        StoryCatalog.resetForTest()
+        StoryCatalog.init(ApplicationProvider.getApplicationContext<Context>())
+
+        assertTrue(StoryCatalog.stories(TargetLanguage.SPANISH).isNotEmpty())
+        assertEquals(setOf(TargetLanguage.SPANISH), StoryCatalog.loadedLanguagesForTest())
+
+        runBlocking { StoryCatalog.preloadAsync() }
+        assertEquals(TargetLanguage.entries.toSet(), StoryCatalog.loadedLanguagesForTest())
     }
 
     private fun assertValidDiamondStory(story: StoryDefinition) {
