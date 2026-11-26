@@ -351,7 +351,7 @@ fun StudioHomeScreen(
                     TactileButton(
                         onClick = onOpenTutorHub,
                         containerColor = palette.aiAccent,
-                        contentColor = Color.White,
+                        contentColor = palette.onAiAccent,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("home_open_tutor_button")

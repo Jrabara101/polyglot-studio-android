@@ -2,6 +2,7 @@ package com.example.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -13,6 +14,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.data.model.TargetLanguage
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 
 @Immutable
 data class StudioPalette(
@@ -25,30 +29,18 @@ data class StudioPalette(
     val subtleSurface: Color,
     val success: Color,
     val successSoft: Color,
+    val onSuccess: Color = Color.White,
     val danger: Color,
     val dangerSoft: Color,
+    val onDanger: Color = Color.White,
     val aiAccent: Color,
     val aiSoft: Color,
+    val onAiAccent: Color = Color.White,
     val isDark: Boolean
 )
 
 val LocalStudioPalette = staticCompositionLocalOf {
-    StudioPalette(
-        inkBorder = StudioInk,
-        shadowColor = StudioInk,
-        languageAccent = JapanPersimmon,
-        languageTint = JapanSakuraMist,
-        onLanguageAccent = Color.White,
-        cardSurface = StudioPaper,
-        subtleSurface = StudioWarmAlt,
-        success = MintEmerald,
-        successSoft = MintSoft,
-        danger = CoralAlert,
-        dangerSoft = CoralSoft,
-        aiAccent = AiViolet,
-        aiSoft = AiVioletSoft,
-        isDark = false
-    )
+    studioPaletteFor(TargetLanguage.JAPANESE, darkTheme = false)
 }
 
 private val StudioShapes = Shapes(
@@ -61,31 +53,34 @@ private val StudioShapes = Shapes(
 
 fun accentForLanguage(language: TargetLanguage, darkTheme: Boolean): Pair<Color, Color> =
     when (language) {
-        TargetLanguage.JAPANESE -> JapanPersimmon to if (darkTheme) JapanDarkTint else JapanSakuraMist
-        TargetLanguage.SPANISH -> SpainSaffron to if (darkTheme) SpainDarkTint else SpainSunlitCream
-        TargetLanguage.FRENCH -> FranceCobalt to if (darkTheme) FranceDarkTint else FranceSkyTint
+        TargetLanguage.JAPANESE ->
+            (if (darkTheme) JapanPersimmonDark else JapanPersimmon) to
+                (if (darkTheme) JapanDarkTint else JapanSakuraMist)
+        TargetLanguage.SPANISH ->
+            (if (darkTheme) SpainSaffronDark else SpainSaffron) to
+                (if (darkTheme) SpainDarkTint else SpainSunlitCream)
+        TargetLanguage.FRENCH ->
+            (if (darkTheme) FranceCobaltDark else FranceCobalt) to
+                (if (darkTheme) FranceDarkTint else FranceSkyTint)
     }
 
-@Composable
-fun PolyglotStudioTheme(
-    activeLanguage: TargetLanguage = TargetLanguage.JAPANESE,
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun studioColorSchemeFor(
+    activeLanguage: TargetLanguage,
+    darkTheme: Boolean
+): ColorScheme {
     val (langAccent, langTint) = accentForLanguage(activeLanguage, darkTheme)
-
-    val colorScheme = if (darkTheme) {
+    return if (darkTheme) {
         darkColorScheme(
             primary = langAccent,
-            onPrimary = Color.White,
+            onPrimary = StudioInk,
             primaryContainer = langTint,
             onPrimaryContainer = StudioDarkText,
-            secondary = AiViolet,
-            onSecondary = Color.White,
-            secondaryContainer = Color(0xFF33265A),
+            secondary = AiVioletDark,
+            onSecondary = StudioInk,
+            secondaryContainer = AiVioletSoftDark,
             onSecondaryContainer = Color(0xFFE7DEFF),
-            tertiary = MintEmerald,
-            onTertiary = Color.White,
+            tertiary = MintEmeraldDark,
+            onTertiary = StudioInk,
             background = StudioDarkCanvas,
             onBackground = StudioDarkText,
             surface = StudioDarkSurface,
@@ -93,8 +88,8 @@ fun PolyglotStudioTheme(
             surfaceVariant = StudioDarkSurfaceAlt,
             onSurfaceVariant = StudioDarkMutedText,
             outline = Color(0xFF494458),
-            error = CoralAlert,
-            onError = Color.White
+            error = CoralAlertDark,
+            onError = StudioInk
         )
     } else {
         lightColorScheme(
@@ -119,23 +114,60 @@ fun PolyglotStudioTheme(
             onError = Color.White
         )
     }
+}
 
-    val studioPalette = StudioPalette(
+fun studioPaletteFor(
+    activeLanguage: TargetLanguage,
+    darkTheme: Boolean
+): StudioPalette {
+    val (langAccent, langTint) = accentForLanguage(activeLanguage, darkTheme)
+    val onAccent = if (darkTheme) StudioInk else Color.White
+    return StudioPalette(
         inkBorder = if (darkTheme) Color(0xFF4B4659) else StudioInk,
         shadowColor = if (darkTheme) Color(0xFF0B0A0F) else StudioInk,
         languageAccent = langAccent,
         languageTint = langTint,
-        onLanguageAccent = Color.White,
+        onLanguageAccent = onAccent,
         cardSurface = if (darkTheme) StudioDarkSurface else StudioPaper,
         subtleSurface = if (darkTheme) StudioDarkSurfaceAlt else StudioWarmAlt,
-        success = MintEmerald,
-        successSoft = if (darkTheme) Color(0xFF173D31) else MintSoft,
-        danger = CoralAlert,
-        dangerSoft = if (darkTheme) Color(0xFF471C22) else CoralSoft,
-        aiAccent = AiViolet,
-        aiSoft = if (darkTheme) Color(0xFF2D2252) else AiVioletSoft,
+        success = if (darkTheme) MintEmeraldDark else MintEmerald,
+        successSoft = if (darkTheme) MintSoftDark else MintSoft,
+        onSuccess = onAccent,
+        danger = if (darkTheme) CoralAlertDark else CoralAlert,
+        dangerSoft = if (darkTheme) CoralSoftDark else CoralSoft,
+        onDanger = onAccent,
+        aiAccent = if (darkTheme) AiVioletDark else AiViolet,
+        aiSoft = if (darkTheme) AiVioletSoftDark else AiVioletSoft,
+        onAiAccent = onAccent,
         isDark = darkTheme
     )
+}
+
+/** Computes WCAG 2.1 contrast ratio between two opaque sRGB [Color] values (range 1.0..21.0). */
+internal fun contrastRatio(foreground: Color, background: Color): Double {
+    val l1 = relativeLuminance(foreground)
+    val l2 = relativeLuminance(background)
+    return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+}
+
+private fun relativeLuminance(color: Color): Double {
+    fun linearize(channel: Float): Double {
+        val c = channel.toDouble()
+        return if (c <= 0.03928) c / 12.92 else ((c + 0.055) / 1.055).pow(2.4)
+    }
+    return 0.2126 * linearize(color.red) +
+        0.7152 * linearize(color.green) +
+        0.0722 * linearize(color.blue)
+}
+
+@Composable
+fun PolyglotStudioTheme(
+    activeLanguage: TargetLanguage = TargetLanguage.JAPANESE,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val colorScheme = studioColorSchemeFor(activeLanguage, darkTheme)
+    val studioPalette = studioPaletteFor(activeLanguage, darkTheme)
 
     CompositionLocalProvider(LocalStudioPalette provides studioPalette) {
         MaterialTheme(

@@ -657,11 +657,11 @@ private fun PadControls(
             onClick = onCheck,
             enabled = !isEvaluating,
             containerColor = palette.aiAccent,
-            contentColor = Color.White,
+            contentColor = palette.onAiAccent,
             modifier = Modifier.testTag("check_calligraphy_button")
         ) {
             if (isEvaluating) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = palette.onAiAccent, strokeWidth = 2.dp)
                 Spacer(Modifier.width(6.dp))
                 Text("Grading…")
             } else {

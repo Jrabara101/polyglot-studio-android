@@ -9,23 +9,23 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 
 val FredokaFontFamily = FontFamily(
-    Font(R.font.fredoka, FontWeight.Normal),
-    Font(R.font.fredoka, FontWeight.Medium),
-    Font(R.font.fredoka, FontWeight.SemiBold),
-    Font(R.font.fredoka, FontWeight.Bold)
+    Font(R.font.fredoka_regular, FontWeight.Normal),
+    Font(R.font.fredoka_medium, FontWeight.Medium),
+    Font(R.font.fredoka_semibold, FontWeight.SemiBold),
+    Font(R.font.fredoka_bold, FontWeight.Bold)
 )
 
 val PlusJakartaFontFamily = FontFamily(
-    Font(R.font.plus_jakarta_sans, FontWeight.Normal),
-    Font(R.font.plus_jakarta_sans, FontWeight.Medium),
-    Font(R.font.plus_jakarta_sans, FontWeight.SemiBold),
-    Font(R.font.plus_jakarta_sans, FontWeight.Bold)
+    Font(R.font.plus_jakarta_sans_regular, FontWeight.Normal),
+    Font(R.font.plus_jakarta_sans_medium, FontWeight.Medium),
+    Font(R.font.plus_jakarta_sans_semibold, FontWeight.SemiBold),
+    Font(R.font.plus_jakarta_sans_bold, FontWeight.Bold)
 )
 
 val JetBrainsMonoFamily = FontFamily(
-    Font(R.font.jetbrains_mono, FontWeight.Normal),
-    Font(R.font.jetbrains_mono, FontWeight.Medium),
-    Font(R.font.jetbrains_mono, FontWeight.Bold)
+    Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
+    Font(R.font.jetbrains_mono_medium, FontWeight.Medium),
+    Font(R.font.jetbrains_mono_bold, FontWeight.Bold)
 )
 
 val PolyglotTypography = Typography(

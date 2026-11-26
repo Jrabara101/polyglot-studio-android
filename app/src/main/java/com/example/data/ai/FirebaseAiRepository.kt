@@ -8,6 +8,7 @@ import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
 import com.google.firebase.Firebase
 import com.google.firebase.ai.Chat
+import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.InlineDataPart
@@ -23,7 +24,7 @@ import com.google.firebase.ai.type.liveGenerationConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.Collections
@@ -31,11 +32,16 @@ import java.util.Collections
 private const val TAG = "FirebaseAiRepository"
 private const val AI_TIMEOUT_MS = 60_000L
 
-/** Each grading model gets this long before the next one is tried. */
-private const val GRADING_TIMEOUT_MS = 20_000L
+/** Each model in a fast-first fallback chain gets this long before the backup model is tried. */
+internal const val MODEL_FALLBACK_TIMEOUT_MS = 20_000L
 
-/** Fast model first; the larger model is a backup (it was overloaded during QA). */
-private val GRADING_MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.8-flash")
+internal const val FAST_MODEL_NAME = "gemini-3.5-flash-lite"
+internal const val STANDARD_MODEL_NAME = "gemini-3.8-flash"
+internal const val TTS_MODEL_NAME = "gemini-3.1-flash-tts-preview"
+internal const val LIVE_MODEL_NAME = "gemini-3.1-flash-live-preview"
+
+/** Fast model first; standard Flash is an automatic backup if the fast model times out or 503s. */
+internal val FAST_FALLBACK_MODELS = listOf(FAST_MODEL_NAME, STANDARD_MODEL_NAME)
 
 /** A drawing passes at or above this score. The app decides, not the model. */
 const val CALLIGRAPHY_PASS_SCORE = 65
@@ -61,6 +67,44 @@ data class CalligraphyRequest(
 class GradingUnavailableException(cause: Throwable?) : IllegalStateException(
     "Grading is busy right now. Please try again in a moment, or tap Skip.", cause
 )
+
+/**
+ * Tries each `(modelName, model)` in order with a per-model timeout, falling back to the next
+ * model on timeouts or transient errors while immediately propagating external cancellation.
+ */
+internal suspend fun <M, T> runWithModelFallback(
+    label: String,
+    models: List<Pair<String, M>>,
+    timeoutMs: Long = MODEL_FALLBACK_TIMEOUT_MS,
+    failureFactory: (Throwable?) -> Exception = { cause ->
+        IllegalStateException("$label is busy right now. Please try again in a moment.", cause)
+    },
+    call: suspend (M) -> T
+): T {
+    var lastError: Throwable? = null
+    for ((name, model) in models) {
+        try {
+            return withTimeout(timeoutMs) { call(model) }
+        } catch (e: TimeoutCancellationException) {
+            safeLogWarn("$label with $name timed out after ${timeoutMs}ms", e)
+            lastError = e
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            safeLogWarn("$label with $name failed", e)
+            lastError = e
+        }
+    }
+    throw failureFactory(lastError)
+}
+
+private fun safeLogWarn(message: String, error: Throwable) {
+    try {
+        Log.w(TAG, message, error)
+    } catch (_: Throwable) {
+        // Pure JVM unit tests without Robolectric do not mock android.util.Log.
+    }
+}
 
 /** Parses the model's JSON. Throws if the score is missing so the next model can be tried. */
 internal fun parseCalligraphyEvaluation(raw: String): CalligraphyEvaluation {
@@ -91,6 +135,14 @@ data class StoryTurnResponse(
     val suggestedReplies: List<StoryChoiceSeed>
 )
 
+/** Holds a fast-first primary chat and backup chat for automatic Tutor streaming failover. */
+class TutorChatSession internal constructor(
+    internal val chats: List<Pair<String, Chat>>
+) {
+    @Volatile
+    internal var preferredIndex: Int = 0
+}
+
 @OptIn(PublicPreviewAPI::class)
 class FirebaseAiRepository {
 
@@ -101,12 +153,14 @@ class FirebaseAiRepository {
         }
     )
 
-    private val flashModel by lazy {
-        Firebase.ai(backend = GenerativeBackend.googleAI())
-            .generativeModel(modelName = "gemini-3.8-flash")
+    private val textModels: List<Pair<String, GenerativeModel>> by lazy {
+        FAST_FALLBACK_MODELS.map { name ->
+            name to Firebase.ai(backend = GenerativeBackend.googleAI())
+                .generativeModel(modelName = name)
+        }
     }
 
-    private val fastQuizModel by lazy {
+    private val quizModels: List<Pair<String, GenerativeModel>> by lazy {
         val quizSchema = Schema.obj(
             properties = mapOf(
                 "questions" to Schema.array(
@@ -122,16 +176,18 @@ class FirebaseAiRepository {
                 )
             )
         )
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.5-flash-lite",
-            generationConfig = generationConfig {
-                responseMimeType = "application/json"
-                responseSchema = quizSchema
-            }
-        )
+        FAST_FALLBACK_MODELS.map { name ->
+            name to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+                modelName = name,
+                generationConfig = generationConfig {
+                    responseMimeType = "application/json"
+                    responseSchema = quizSchema
+                }
+            )
+        }
     }
 
-    private val calligraphyModels by lazy {
+    private val calligraphyModels: List<Pair<String, GenerativeModel>> by lazy {
         val evalSchema = Schema.obj(
             properties = mapOf(
                 "score" to Schema.integer(description = "Accuracy score 0 to 100"),
@@ -139,7 +195,7 @@ class FirebaseAiRepository {
                 "improvementTip" to Schema.string(description = "Actionable next-attempt tip")
             )
         )
-        GRADING_MODELS.map { name ->
+        FAST_FALLBACK_MODELS.map { name ->
             name to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
                 modelName = name,
                 generationConfig = generationConfig {
@@ -150,7 +206,7 @@ class FirebaseAiRepository {
         }
     }
 
-    private val voiceEvalModel by lazy {
+    private val voiceEvalModels: List<Pair<String, GenerativeModel>> by lazy {
         val schema = Schema.obj(
             properties = mapOf(
                 "transcript" to Schema.string(description = "What the learner actually said"),
@@ -159,16 +215,18 @@ class FirebaseAiRepository {
                 "phoneticTip" to Schema.string(description = "Specific articulation or accent tip")
             )
         )
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.8-flash",
-            generationConfig = generationConfig {
-                responseMimeType = "application/json"
-                responseSchema = schema
-            }
-        )
+        FAST_FALLBACK_MODELS.map { name ->
+            name to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+                modelName = name,
+                generationConfig = generationConfig {
+                    responseMimeType = "application/json"
+                    responseSchema = schema
+                }
+            )
+        }
     }
 
-    private val storyModel by lazy {
+    private val storyModels: List<Pair<String, GenerativeModel>> by lazy {
         val schema = Schema.obj(
             properties = mapOf(
                 "npcLine" to Schema.string(description = "NPC response in the target language"),
@@ -188,13 +246,41 @@ class FirebaseAiRepository {
                 )
             )
         )
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.8-flash",
-            generationConfig = generationConfig {
-                responseMimeType = "application/json"
-                responseSchema = schema
+        FAST_FALLBACK_MODELS.map { name ->
+            name to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+                modelName = name,
+                generationConfig = generationConfig {
+                    responseMimeType = "application/json"
+                    responseSchema = schema
+                }
+            )
+        }
+    }
+
+    /** Cached TTS GenerativeModel per target language to avoid per-tap model allocations. */
+    private val ttsModels: Map<TargetLanguage, GenerativeModel> by lazy {
+        TargetLanguage.entries.associateWith { language ->
+            val bcp47 = when (language) {
+                TargetLanguage.JAPANESE -> "ja-JP"
+                TargetLanguage.SPANISH -> "es-ES"
+                TargetLanguage.FRENCH -> "fr-FR"
             }
-        )
+            val voiceName = when (language) {
+                TargetLanguage.JAPANESE -> "Kore"
+                TargetLanguage.SPANISH -> "Aoede"
+                TargetLanguage.FRENCH -> "Charon"
+            }
+            Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+                modelName = TTS_MODEL_NAME,
+                generationConfig = generationConfig {
+                    responseModalities = listOf(ResponseModality.AUDIO)
+                    speechConfig = SpeechConfig(
+                        voice = Voice(voiceName),
+                        languageCode = bcp47
+                    )
+                }
+            )
+        }
     }
 
     suspend fun synthesizeSpeechPcm(
@@ -205,27 +291,7 @@ class FirebaseAiRepository {
         val cacheKey = "${language.code}|$slow|$text"
         ttsCache[cacheKey]?.let { return it }
 
-        val bcp47 = when (language) {
-            TargetLanguage.JAPANESE -> "ja-JP"
-            TargetLanguage.SPANISH -> "es-ES"
-            TargetLanguage.FRENCH -> "fr-FR"
-        }
-        val voiceName = when (language) {
-            TargetLanguage.JAPANESE -> "Kore"
-            TargetLanguage.SPANISH -> "Aoede"
-            TargetLanguage.FRENCH -> "Charon"
-        }
-        val model = Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.1-flash-tts-preview",
-            generationConfig = generationConfig {
-                responseModalities = listOf(ResponseModality.AUDIO)
-                speechConfig = SpeechConfig(
-                    voice = Voice(voiceName),
-                    languageCode = bcp47
-                )
-            }
-        )
-
+        val model = ttsModels.getValue(language)
         val paceInstruction = if (slow) {
             "Speak very slowly, clearly, and enunciate every syllable for a language learner"
         } else {
@@ -248,8 +314,8 @@ class FirebaseAiRepository {
     }
 
     /**
-     * Grades a drawing. Tries each model in [GRADING_MODELS] with a [GRADING_TIMEOUT_MS] limit and
-     * throws [GradingUnavailableException] (with a learner-friendly message) if none answers.
+     * Grades a drawing. Tries each model in [FAST_FALLBACK_MODELS] with a [MODEL_FALLBACK_TIMEOUT_MS]
+     * limit and throws [GradingUnavailableException] if none answers.
      */
     suspend fun evaluateCalligraphy(request: CalligraphyRequest): CalligraphyEvaluation {
         val prompt = content {
@@ -266,33 +332,23 @@ class FirebaseAiRepository {
                     "If the canvas is nearly blank, score below 20 and explain kindly."
             )
         }
-        var lastError: Exception? = null
-        for ((name, model) in calligraphyModels) {
-            try {
-                return withTimeout(GRADING_TIMEOUT_MS) {
-                    val raw = model.generateContent(prompt).text
-                        ?: throw IllegalStateException("Empty calligraphy evaluation.")
-                    parseCalligraphyEvaluation(raw)
-                }
-            } catch (e: TimeoutCancellationException) {
-                Log.w(TAG, "Calligraphy grading with $name timed out", e)
-                lastError = e
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Calligraphy grading with $name failed", e)
-                lastError = e
-            }
+        return runWithModelFallback(
+            label = "Calligraphy grading",
+            models = calligraphyModels,
+            failureFactory = { GradingUnavailableException(it) }
+        ) { model ->
+            val raw = model.generateContent(prompt).text
+                ?: throw IllegalStateException("Empty calligraphy evaluation.")
+            parseCalligraphyEvaluation(raw)
         }
-        throw GradingUnavailableException(lastError)
     }
 
     suspend fun generateQuizQuestions(
         language: TargetLanguage,
         difficulty: DifficultyLevel,
         count: Int = 4
-    ): List<QuizQuestionItem> = runWithTimeout("Quiz generation") {
-        val response = fastQuizModel.generateContent(
+    ): List<QuizQuestionItem> = runWithModelFallback("Quiz generation", quizModels) { model ->
+        val response = model.generateContent(
             "Generate $count unique, engaging ${difficulty.label}-level ${language.displayName} grammar & syntax " +
                 "multiple-choice questions for an English speaker. Keep targetSnippet concise with '___' for the blank, " +
                 "provide exactly 4 distinct options, and a crisp 1-sentence grammarRule."
@@ -319,8 +375,8 @@ class FirebaseAiRepository {
         language: TargetLanguage,
         snippet: String,
         correctOption: String
-    ): String = runWithTimeout("Grammar explanation") {
-        val response = flashModel.generateContent(
+    ): String = runWithModelFallback("Grammar explanation", textModels) { model ->
+        val response = model.generateContent(
             "In 3 concise bullet-free sentences, explain why '$correctOption' fits '$snippet' in ${language.displayName} " +
                 "and give one bonus everyday example with English translation."
         )
@@ -332,8 +388,8 @@ class FirebaseAiRepository {
         wavBytes: ByteArray,
         expectedPhrase: String,
         language: TargetLanguage
-    ): VoiceEvaluation = runWithTimeout("Voice evaluation") {
-        val response = voiceEvalModel.generateContent(
+    ): VoiceEvaluation = runWithModelFallback("Voice evaluation", voiceEvalModels) { model ->
+        val response = model.generateContent(
             content {
                 inlineData(wavBytes, "audio/wav")
                 text(
@@ -359,8 +415,8 @@ class FirebaseAiRepository {
         difficulty: DifficultyLevel,
         historySummary: String,
         userReply: String
-    ): StoryTurnResponse = runWithTimeout("Story turn") {
-        val response = storyModel.generateContent(
+    ): StoryTurnResponse = runWithModelFallback("Story turn", storyModels) { model ->
+        val response = model.generateContent(
             "You are roleplaying a friendly local character in the ${language.displayName} scenario '$scenarioTitle' " +
                 "at ${difficulty.label} level. Recent dialogue:\n$historySummary\n" +
                 "The learner just replied: \"$userReply\".\n" +
@@ -388,7 +444,7 @@ class FirebaseAiRepository {
         )
     }
 
-    fun startTutorChat(language: TargetLanguage, difficulty: DifficultyLevel): Chat {
+    fun startTutorChat(language: TargetLanguage, difficulty: DifficultyLevel): TutorChatSession {
         val sys = content {
             text(
                 "You are Lumi, an encouraging, playful ${language.displayName} (${language.nativeLabel}) tutor in Polyglot Studio. " +
@@ -397,15 +453,45 @@ class FirebaseAiRepository {
                     "Keep responses crisp, structured, and under 120 words unless asked for deeper grammar."
             )
         }
-        val tutorModel = Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = "gemini-3.8-flash",
-            systemInstruction = sys
-        )
-        return tutorModel.startChat()
+        val chats = FAST_FALLBACK_MODELS.map { modelName ->
+            modelName to Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+                modelName = modelName,
+                systemInstruction = sys
+            ).startChat()
+        }
+        return TutorChatSession(chats)
     }
 
-    fun sendTutorMessageStream(chat: Chat, message: String): Flow<String> =
-        chat.sendMessageStream(message).map { chunk -> chunk.text.orEmpty() }
+    fun sendTutorMessageStream(session: TutorChatSession, message: String): Flow<String> = flow {
+        val orderedIndices = (session.preferredIndex until session.chats.size) +
+            (0 until session.preferredIndex)
+        var lastError: Throwable? = null
+        for (idx in orderedIndices) {
+            val (name, chat) = session.chats[idx]
+            var emittedAny = false
+            try {
+                chat.sendMessageStream(message).collect { chunk ->
+                    val text = chunk.text.orEmpty()
+                    if (text.isNotEmpty()) {
+                        emittedAny = true
+                        emit(text)
+                    }
+                }
+                session.preferredIndex = idx
+                return@flow
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (emittedAny) throw e
+                safeLogWarn("Tutor stream with $name failed before first chunk, trying fallback", e)
+                lastError = e
+            }
+        }
+        throw IllegalStateException(
+            "Lumi is busy right now. Please try again in a moment.",
+            lastError
+        )
+    }
 
     suspend fun connectLiveTutorSession(
         language: TargetLanguage,
@@ -423,7 +509,7 @@ class FirebaseAiRepository {
             TargetLanguage.FRENCH -> Voice("Charon")
         }
         val liveModel = Firebase.ai(backend = GenerativeBackend.googleAI()).liveModel(
-            modelName = "gemini-3.1-flash-live-preview",
+            modelName = LIVE_MODEL_NAME,
             generationConfig = liveGenerationConfig {
                 responseModality = ResponseModality.AUDIO
                 speechConfig = SpeechConfig(voice = voice)

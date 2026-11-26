@@ -235,27 +235,27 @@ fun LanguageSelectorRow(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(if (selected) Color.White.copy(alpha = 0.22f) else tint)
+                            .background(if (selected) palette.onLanguageAccent.copy(alpha = 0.18f) else tint)
                             .border(1.dp, palette.inkBorder.copy(alpha = 0.3f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = lang.shortBadge,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (selected) Color.White else accent
+                            color = if (selected) palette.onLanguageAccent else accent
                         )
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = lang.displayName,
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) palette.onLanguageAccent else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
                     Text(
                         text = lang.nativeLabel,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (selected) Color.White.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (selected) palette.onLanguageAccent.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }

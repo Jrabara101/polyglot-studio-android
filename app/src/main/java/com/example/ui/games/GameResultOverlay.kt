@@ -230,7 +230,7 @@ fun GameCompletionCard(
                             onClick = onRetrySave,
                             enabled = !isSaving,
                             containerColor = palette.danger,
-                            contentColor = Color.White,
+                            contentColor = palette.onDanger,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("retry_save_button")
@@ -248,7 +248,7 @@ fun GameCompletionCard(
                 TactileButton(
                     onClick = onPlayAgain,
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier
                         .weight(1f)
                         .testTag(primaryActionTag)

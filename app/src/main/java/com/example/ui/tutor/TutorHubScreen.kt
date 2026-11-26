@@ -68,11 +68,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.ai.FirebaseAiRepository
 import com.example.data.model.DifficultyLevel
 import com.example.data.model.TargetLanguage
-import com.example.ui.components.StudioIcons
 import com.example.ui.components.LanguageSelectorRow
 import com.example.ui.components.StudioBadge
+import com.example.ui.components.StudioIcons
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
+import com.example.ui.components.parseSimpleMarkdown
+import com.example.ui.components.stripMarkdownForSpeech
 import com.example.ui.theme.GoldStreak
 import com.example.ui.theme.LocalStudioPalette
 import com.google.firebase.ai.type.PublicPreviewAPI
@@ -332,7 +334,7 @@ fun TutorHubScreen(
                                         Icon(
                                             imageVector = if (isLiveActive) StudioIcons.GraphicEq else StudioIcons.Mic,
                                             contentDescription = null,
-                                            tint = if (isLiveActive) Color.White else palette.aiAccent,
+                                            tint = if (isLiveActive) palette.onAiAccent else palette.aiAccent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -377,14 +379,14 @@ fun TutorHubScreen(
                                 },
                                 enabled = !isConnectingLive,
                                 containerColor = if (isLiveActive) palette.danger else palette.aiAccent,
-                                contentColor = Color.White,
+                                contentColor = if (isLiveActive) palette.onDanger else palette.onAiAccent,
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                                 modifier = Modifier.testTag("tutor_live_toggle_button")
                             ) {
                                 if (isConnectingLive) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
-                                        color = Color.White,
+                                        color = if (isLiveActive) palette.onDanger else palette.onAiAccent,
                                         strokeWidth = 2.dp
                                     )
                                 } else {
@@ -490,7 +492,7 @@ fun TutorHubScreen(
                                     if (msg.text.isNotBlank()) {
                                         IconButton(
                                             onClick = {
-                                                onSpeak("tutor_$idx", msg.text, selectedLanguage, false)
+                                                onSpeak("tutor_$idx", stripMarkdownForSpeech(msg.text), selectedLanguage, false)
                                             },
                                             modifier = Modifier
                                                 .size(40.dp)
@@ -506,7 +508,10 @@ fun TutorHubScreen(
                                     }
                                 }
                                 Text(
-                                    text = msg.text.ifBlank { "Thinking…" },
+                                    text = parseSimpleMarkdown(
+                                        raw = msg.text.ifBlank { "Thinking…" },
+                                        codeBackground = palette.subtleSurface
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }

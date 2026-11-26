@@ -440,7 +440,7 @@ fun QuizGameScreen(
                                             }
                                         },
                                         containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = Color.White,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
                                         modifier = Modifier.testTag("quiz_next_button")
                                     ) {
                                         Text(if (currentIdx < questions.lastIndex) "Next" else "Finish")

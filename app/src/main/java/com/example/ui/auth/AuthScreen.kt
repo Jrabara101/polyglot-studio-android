@@ -58,13 +58,8 @@ import com.example.ui.components.StudioIcons
 import com.example.ui.components.StudioBadge
 import com.example.ui.components.TactileButton
 import com.example.ui.components.TactileCard
-import com.example.ui.theme.FranceCobalt
-import com.example.ui.theme.FranceSkyTint
-import com.example.ui.theme.JapanPersimmon
-import com.example.ui.theme.JapanSakuraMist
 import com.example.ui.theme.LocalStudioPalette
-import com.example.ui.theme.SpainSaffron
-import com.example.ui.theme.SpainSunlitCream
+import com.example.ui.theme.accentForLanguage
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -154,9 +149,9 @@ fun AuthScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            LanguageMiniPill(TargetLanguage.JAPANESE, JapanPersimmon, JapanSakuraMist, Modifier.weight(1f))
-                            LanguageMiniPill(TargetLanguage.SPANISH, SpainSaffron, SpainSunlitCream, Modifier.weight(1f))
-                            LanguageMiniPill(TargetLanguage.FRENCH, FranceCobalt, FranceSkyTint, Modifier.weight(1f))
+                            LanguageMiniPill(TargetLanguage.JAPANESE, palette.isDark, Modifier.weight(1f))
+                            LanguageMiniPill(TargetLanguage.SPANISH, palette.isDark, Modifier.weight(1f))
+                            LanguageMiniPill(TargetLanguage.FRENCH, palette.isDark, Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(
@@ -223,7 +218,7 @@ fun AuthScreen(
                 },
                 enabled = !isSigningIn && !isAutoChecking,
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("google_sign_in_button")
@@ -231,7 +226,7 @@ fun AuthScreen(
                 if (isSigningIn || isAutoChecking) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.5.dp
                     )
                     Spacer(Modifier.width(10.dp))
@@ -369,10 +364,10 @@ private fun LegalLink(
 @Composable
 private fun LanguageMiniPill(
     language: TargetLanguage,
-    accent: Color,
-    tint: Color,
+    isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val (accent, tint) = accentForLanguage(language, isDark)
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = tint,
@@ -391,7 +386,7 @@ private fun LanguageMiniPill(
             Text(
                 text = language.nativeLabel,
                 style = MaterialTheme.typography.titleSmall,
-                color = Color(0xFF1E1B24),
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
             )
         }
